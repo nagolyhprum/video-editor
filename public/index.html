@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+</head>
+<body>
+  <script src="/index.js"></script>
+  <script>    
+        const main = async () => {
+            const files = await listFiles({})
+            console.log({files})
+            await uploadFile({
+                pathname : "test.txt",
+                file : new Blob(["Hello World"], {type : "text/plain"})
+            })
+            const test = await downloadFile({
+                pathname : "test.txt"
+            })
+            await uploadFile({
+                pathname : "test/test.txt",
+                file : new Blob(["Goodbye cruel world"], {type : "text/plain"})
+            })
+            const testTest = await downloadFile({
+                pathname : "test/test.txt"
+            })
+            console.log({test, testTest})
+        }
+        main()
+  </script>
+</body>
+</html>
