@@ -1,13 +1,26 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <style>
+        #drop-zone {
+            inset : 0;
+            position : absolute;
+        }
+    </style>
 </head>
 <body>
-  <script src="/index.js"></script>
+    <div id="drop-zone">
+        <ul id="projects"></ul>
+        <div id="project"></div>
+    </div>
+  <script src="/api.js"></script>
+  <script src="/project.js"></script>
+  <script src="/projects.js"></script>
+  <script src="/upload-file.js"></script>
+  <script src="/setup.js"></script>
   <script>    
-        const main = async () => {
+        const test = async () => {
             const files = await listFiles({})
-            console.log({files})
             await uploadFile({
                 pathname : "test.txt",
                 file : new Blob(["Hello World"], {type : "text/plain"})
@@ -22,9 +35,8 @@
             const testTest = await downloadFile({
                 pathname : "test/test.txt"
             })
-            console.log({test, testTest})
         }
-        main()
+        // test()
   </script>
 </body>
 </html>

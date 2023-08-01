@@ -37,10 +37,10 @@ app.get('/download/:pathname(*)', async (req, res) => {
 app.get('/list/:pathname(*)?', async (req, res) => {
     try {
         const pathname = path.join(__dirname, 'uploads', req.params.pathname ?? "");
-        const files = await fs.readdir(pathname);
-        res.status(200).json({ files });        
+        const data = await fs.readdir(pathname);
+        res.status(200).json({ data });        
     } catch(err) {        
-        return { files : [] }
+        return { data : [] }
     }
 });
 

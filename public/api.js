@@ -20,7 +20,7 @@ async function uploadFile({file, pathname}) {
     try {
         const response = await fetch(pathname ? `/list/${pathname}` : "/list")
         const json = await response.json()
-        return json.files;
+        return json.data;
     } catch(error) {
         console.error('Error fetching file list:', error);
         throw error;
