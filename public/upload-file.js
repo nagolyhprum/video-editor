@@ -17,9 +17,11 @@ dropZoneDiv.addEventListener('drop', (event) => {
 });
 
 const handleFileUpload = async (files) => {
-    const name = prompt("What would you like to name your new project?", files[0].name)
-    if(name) {
-        await uploadFile({ file: files[0], pathname: `projects/${name}/video.mp3` })
-        setup()
+    const project = prompt("What would you like to name your new project?", files[0].name)
+    if(project) {
+        await uploadFile({ file: files[0], pathname: `projects/${project}/video.mp3` })
+        state.set({
+            project
+        })
     }
 }
