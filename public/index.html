@@ -10,9 +10,6 @@
             overflow : auto;
             width : 100%;
         }
-        #timeline canvas {
-            border : 1px solid black;
-        }
         #timeline {
             position : relative;
         }
@@ -23,6 +20,10 @@
             width : 5px;
             height : 100%;
             background-color : red;
+        }
+        #thumbnails {
+            display : flex;
+            flex-direction : row;
         }
     </style>
 </head>
@@ -39,6 +40,8 @@
             <div id="thumbnails"></div>
             <div id="marker"></div>
         </div>
+        <button id="split">Split</button>
+        <button id="delete">Delete</button>
     </div>
     <script src="/shared/util.js"></script>
     <script src="/shared/api.js"></script>
@@ -48,6 +51,7 @@
   <script src="/components/projects.js"></script>
   <script src="/components/upload-file.js"></script>
   <script src="/components/timeline.js"></script>
+  <script src="/components/clip.js"></script>
   <script>    
         const test = async () => {
             const files = await listFiles({})

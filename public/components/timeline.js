@@ -73,6 +73,9 @@
                 for(let i = 0; i < Math.ceil(canvas.width / width); i++) {
                     await seekVideo(video, start + i * (width / FPS))
                     context.drawImage(video, i * width, 0, width, height)
+                    context.strokeStyle = "purple"
+                    context.lineWidth = 10
+                    context.strokeRect(5, 5, canvas.width - 10, canvas.height - 10)
                 }
             }, Promise.resolve())
         }

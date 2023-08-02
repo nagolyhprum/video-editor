@@ -54,9 +54,11 @@
   })
   
   state.watch(["project"], (project) => {
-      if(project) {
-          videoElement.src = `/download/projects/${project}/video.mp3`
+      if(project) {      
+        videoElement.src = `/download/projects/${project}/video.mp3`
+        videoElement.onloadeddata = () => {
           videoElement.currentTime = 0
+        }
       }
   });
 }
