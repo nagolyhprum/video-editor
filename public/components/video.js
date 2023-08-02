@@ -41,13 +41,34 @@
 
   state.watch(["time"], time => {
     if(!state.value.isPlaying) {
-      videoElement.currentTime = time
+      const result = getActiveClip()
+      if(result) {
+        const { clip, start } = result
+        const elapsed = time - start
+        videoElement.currentTime = clip.start + elapsed
+      }
     }
   })
 
+  const timeouts = []
+
   state.watch(["isPlaying"], isPlaying => {
     if(isPlaying) {      
-      videoElement.play()
+      let startOffset = 0;
+      state.value.timeline.forEach((clip) => {
+        if(clip.length + startOffset >= state.value.time) {          
+          timeouts.push(setTimeout(() => {
+            if(clip.type === "video") {
+              videoElement.currentTime = clip.start
+              videoElement.play()
+            } else {
+              videoElement.currentTime = clip.start
+              videoElement.pause()
+            }
+          }, (startOffset - state.value.time) * 1000))
+        }
+        startOffset += clip.length
+      })
     } else {
       videoElement.pause()
     }

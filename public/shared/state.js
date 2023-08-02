@@ -61,4 +61,17 @@ const init = async () => {
     })
 }
 
+const getActiveClip = () => {
+    let start = 0
+    for(let clip of state.value.timeline) {
+        if(start + clip.length > state.value.time) {
+            return {
+                clip,
+                start
+            }
+        }
+        start += clip.length
+    }
+}
+
 init()
