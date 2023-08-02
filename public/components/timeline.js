@@ -5,6 +5,26 @@
 
     const FPS = 10
 
+    let mouse = false
+    const moveMarker = (e) => {
+        mouse = true;
+        state.set({
+            time : (e.clientX + timelineDiv.scrollLeft) / FPS,
+            isPlaying : false
+        })
+    }    
+    timelineDiv.onmousedown = (e) => {
+        moveMarker(e)
+    }
+    timelineDiv.onmousemove = (e) => {
+        if(mouse) {
+            moveMarker(e)
+        }
+    }
+    timelineDiv.onmouseleave = timelineDiv.onmouseup = () => {
+        mouse = false;
+    }
+
     const videoCache = (() => {
         const cache = {}
         return (url) => {
@@ -23,9 +43,11 @@
         }
     })()
 
-    state.watch(["time"], time => {
+    state.watch(["time", "isPlaying"], (time, isPlaying) => {
         markerDiv.style.left = `${time * FPS}px`   
-        timelineDiv.scrollLeft = time * FPS - timelineDiv.clientWidth / 2
+        if(isPlaying) {
+            timelineDiv.scrollLeft = time * FPS - timelineDiv.clientWidth / 2
+        }
     })
     
     state.watch(["timeline", "project"], async (timeline, project) => { 
@@ -45,13 +67,12 @@
                 canvas.height = height
                 thumbnailsDiv.appendChild(canvas)
                 // load image
-                const image = await extractFrameFromVideo(video, start, height)
-                const width = image.width
+                const width = video.videoWidth * (height / video.videoHeight)
                 // add background
                 const context = canvas.getContext('2d');
                 for(let i = 0; i < Math.ceil(canvas.width / width); i++) {
-                    const thumbnail = await extractFrameFromVideo(video, start + i * (width / FPS), height)
-                    context.drawImage(thumbnail, i * width, 0, width, height)
+                    await seekVideo(video, start + i * (width / FPS))
+                    context.drawImage(video, i * width, 0, width, height)
                 }
             }, Promise.resolve())
         }
