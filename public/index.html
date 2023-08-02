@@ -6,6 +6,24 @@
             inset : 0;
             position : absolute;
         }
+        #timeline {
+            overflow : auto;
+            width : 100%;
+        }
+        #timeline canvas {
+            border : 1px solid black;
+        }
+        #timeline {
+            position : relative;
+        }
+        #marker {
+            position : absolute;
+            top : 0;
+            left : 10px;
+            width : 5px;
+            height : 100%;
+            background-color : red;
+        }
     </style>
 </head>
 <body>
@@ -17,14 +35,19 @@
         <!-- Play and Pause buttons -->
         <button id="playButton">Play</button>
         <button id="pauseButton">Pause</button>
+        <div id="timeline">
+            <div id="thumbnails"></div>
+            <div id="marker"></div>
+        </div>
     </div>
-  <script src="/state.js"></script>
-  <script src="/canvas.js"></script>
-  <script src="/api.js"></script>
-  <script src="/project.js"></script>
-  <script src="/projects.js"></script>
-  <script src="/upload-file.js"></script>
-  <script src="/setup.js"></script>
+    <script src="/shared/util.js"></script>
+    <script src="/shared/api.js"></script>
+  <script src="/shared/state.js"></script>
+  <script src="/components/video.js"></script>
+  <script src="/components/project.js"></script>
+  <script src="/components/projects.js"></script>
+  <script src="/components/upload-file.js"></script>
+  <script src="/components/timeline.js"></script>
   <script>    
         const test = async () => {
             const files = await listFiles({})

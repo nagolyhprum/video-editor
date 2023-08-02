@@ -10,8 +10,6 @@ async function uploadFile({file, pathname}) {
         const json = await response.json()
         return json.message
     } catch(e) {
-        console.error('Error uploading file:', error);
-        throw error;
     }
   }
   
@@ -22,8 +20,7 @@ async function uploadFile({file, pathname}) {
         const json = await response.json()
         return json.data;
     } catch(error) {
-        console.error('Error fetching file list:', error);
-        throw error;
+        return []
     }
   }
   
@@ -33,8 +30,6 @@ async function downloadFile({pathname}) {
         const response = await fetch(`/download/${pathname}`)
         const blob = await response.blob()
         return blob;
-    } catch(error) {
-        console.error('Error fetching file list:', error);
-        throw error;
+    } catch(error) {        
     }
   }
