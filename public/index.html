@@ -25,6 +25,12 @@
             display : flex;
             flex-direction : row;
         }
+        #media {
+            width : 100%;
+            height : 100px;
+            background : blue;
+            position : relative;
+        }
     </style>
 </head>
 <body>
@@ -33,13 +39,12 @@
         <div id="project"></div>
         <!-- Canvas element for video playback -->
         <canvas id="videoCanvas" width="640" height="360" style="border: 2px solid black;"></canvas>
-        <!-- Play and Pause buttons -->
-        <button id="playButton">Play</button>
-        <button id="pauseButton">Pause</button>
         <div id="timeline">
             <div id="thumbnails"></div>
+            <div id="media"></div>
             <div id="marker"></div>
         </div>
+        <button id="playButton">Play / Pause</button>
         <button id="split">Split</button>
         <button id="delete">Delete</button>
         <button id="still">Still</button>
@@ -48,6 +53,7 @@
     <script src="/shared/util.js"></script>
     <script src="/shared/api.js"></script>
   <script src="/shared/state.js"></script>
+  <script src="/components/media.js"></script>
   <script src="/components/video.js"></script>
   <script src="/components/project.js"></script>
   <script src="/components/projects.js"></script>

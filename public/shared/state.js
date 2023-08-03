@@ -1,3 +1,5 @@
+const FPS = 10
+
 const state = {
     value : {
         projects : [],
@@ -43,7 +45,8 @@ const handleFileUpload = async (files) => {
         const timeline = [{
             start : 0,
             length : await getVideoDuration(files[0]),
-            type : "video"
+            type : "video",
+            media : []
         }]
         await uploadFile({ file: files[0], pathname: `projects/${project}/video.mp3` })
         await uploadFile({ file: new Blob([JSON.stringify(timeline)]), pathname: `projects/${project}/timeline.json` })

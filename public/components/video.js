@@ -2,7 +2,6 @@
 
   const videoCanvas = document.getElementById('videoCanvas');
   const playButton = document.getElementById('playButton');
-  const pauseButton = document.getElementById('pauseButton');
 
   let startTime = 0;
   let startOffset = 0;
@@ -29,13 +28,7 @@
     startOffset = state.value.time
     startTime = Date.now()
     state.set({
-      isPlaying : true
-    })
-  });
-  
-  pauseButton.addEventListener('click', () => {
-    state.set({
-      isPlaying : false
+      isPlaying : !state.value.isPlaying
     })
   });
 
@@ -69,10 +62,26 @@
             }
           }, (startOffset - state.value.time) * 1000))
         }
+        // TODO : MEDIA
+        clip.media.forEach(media => {
+          if(media.start + startOffset + media.length >= state.value.time) {
+            const finalOffset = startOffset
+            timeouts.push(setTimeout(() => {
+              if(media.type === "audio") {
+                const audio = new Audio(media.src)
+                audio.currentTime = Math.max(state.value.time - (finalOffset + media.start), 0)
+                audio.play()
+              }
+            }, (startOffset + media.start - state.value.time) * 1000))
+          }
+        })
         startOffset += clip.length
       })
     } else {
       videoElement.pause()
+      while(timeouts.length) {
+        clearTimeout(timeouts.pop())
+      }
     }
   })
   

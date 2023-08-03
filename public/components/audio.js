@@ -19,6 +19,47 @@
                     recordedChunks = [];
                     const path = `/projects/${state.value.project}/audio/${crypto.randomUUID()}.wav`;
                     await uploadFile({ file: audioBlob, pathname: path });
+
+                    const audio = new Audio(URL.createObjectURL(audioBlob));
+                    audio.onseeked = () => {
+                        const { clip, start } = getActiveClip()
+                        const index = state.value.timeline.indexOf(clip)
+                        if(clip.type === "video") {
+                            state.set({
+                                timeline : [
+                                    ...state.value.timeline.slice(0, index),
+                                    {
+                                        ...clip,
+                                        media : [...clip.media, {
+                                            type : "audio",
+                                            src : `/download/${path}`,
+                                            start : state.value.time - start,
+                                            length : audio.duration
+                                        }]
+                                    },
+                                    ...state.value.timeline.slice(index + 1)
+                                ]
+                            })
+                        } else {
+                            state.set({
+                                timeline : [
+                                    ...state.value.timeline.slice(0, index),
+                                    {
+                                        ...clip,
+                                        length : audio.duration,
+                                        media : [{
+                                            type : "audio",
+                                            src : `/download/${path}`,
+                                            start : 0,
+                                            length : audio.duration
+                                        }]
+                                    },
+                                    ...state.value.timeline.slice(index + 1)
+                                ]
+                            })
+                        }
+                    }
+                    audio.currentTime = 1000;
                 };
 
                 mediaRecorder.start();

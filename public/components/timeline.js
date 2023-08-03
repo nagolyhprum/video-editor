@@ -3,8 +3,6 @@
     const thumbnailsDiv = document.getElementById('thumbnails');
     const markerDiv = document.getElementById('marker');
 
-    const FPS = 10
-
     let mouse = false
     const moveMarker = (e) => {
         mouse = true;

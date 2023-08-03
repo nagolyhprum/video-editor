@@ -13,19 +13,19 @@
                 {
                     ...clip,
                     length,
-                    audio : [] // TODO
+                    media : clip.media.filter(media => media.start < length)
                 },
                 {
                     type : "image",
                     start : length + clip.start,
                     length : 5,
-                    audio : []
+                    media : []
                 },
                 {
                     ...clip,
                     start : length + clip.start,
                     length : clip.length - length,
-                    audio : [] // TODO
+                    media : clip.media.filter(media => media.start >= length)
                 },
                 ...state.value.timeline.slice(index + 1)
             ]
@@ -53,13 +53,13 @@
                 {
                     ...clip,
                     length,
-                    audio : [] // TODO
+                    media : clip.media.filter(media => media.start < length)
                 },
                 {
                     ...clip,
                     start : length + clip.start,
                     length : clip.length - length,
-                    audio : [] // TODO
+                    media : clip.media.filter(media => media.start >= length)
                 },
                 ...state.value.timeline.slice(index + 1)
             ]
