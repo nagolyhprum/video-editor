@@ -44,7 +44,7 @@
       const result = getActiveClip()
       if(result) {
         const { clip, start } = result
-        const elapsed = time - start
+        const elapsed = clip.type === "video" ? time - start : 0
         videoElement.currentTime = clip.start + elapsed
       }
     }
@@ -57,9 +57,11 @@
       let startOffset = 0;
       state.value.timeline.forEach((clip) => {
         if(clip.length + startOffset >= state.value.time) {          
-          timeouts.push(setTimeout(() => {
+          const finalOffset = startOffset
+          timeouts.push(setTimeout(() => {            
+            const offset = Math.max(0, state.value.time - finalOffset)
             if(clip.type === "video") {
-              videoElement.currentTime = clip.start
+              videoElement.currentTime = clip.start + offset
               videoElement.play()
             } else {
               videoElement.currentTime = clip.start
