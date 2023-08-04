@@ -3,8 +3,29 @@
     let mediaRecorder;
     let recordedChunks = [];
 
+    let recordWith = null;
+
+    async function getAudioInputSources() {
+        if(recordWith !== null) {
+            return recordWith
+        }
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioInputSources = devices.filter(device => device.kind === 'audioinput');
+        let message = 'Select an audio input source:';
+        audioInputSources.forEach((source, index) => {
+            message += `\n${index + 1}. ${source.label || 'Unnamed Source'}`;
+        });
+        const userInput = prompt(message);
+        const selectedIndex = parseInt(userInput, 10) - 1;
+        const selectedDevice = audioInputSources[selectedIndex];
+        return recordWith = selectedDevice.deviceId
+    }
+
     const startRecording = () => {
-        navigator.mediaDevices.getUserMedia({ audio: true })
+        navigator.mediaDevices.getUserMedia({ 
+            audio: true,
+            deviceId : getAudioInputSources()
+        })
             .then((stream) => {
                 mediaRecorder = new MediaRecorder(stream);
 

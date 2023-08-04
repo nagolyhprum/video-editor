@@ -25,7 +25,10 @@
                     ...clip,
                     start : length + clip.start,
                     length : clip.length - length,
-                    media : clip.media.filter(media => media.start >= length)
+                    media : clip.media.filter(media => media.start >= length).map(media => ({
+                        ...media,
+                        start : media.start - length
+                    }))
                 },
                 ...state.value.timeline.slice(index + 1)
             ]
@@ -59,7 +62,10 @@
                     ...clip,
                     start : length + clip.start,
                     length : clip.length - length,
-                    media : clip.media.filter(media => media.start >= length)
+                    media : clip.media.filter(media => media.start >= length).map(media => ({
+                        ...media,
+                        start : media.start - length
+                    }))
                 },
                 ...state.value.timeline.slice(index + 1)
             ]
