@@ -39,7 +39,7 @@
   }
 
   function generateArrowHead(P0, P1, P2, P3, percent) {
-    const arrowSize = .1;
+    const arrowSize = 20;
     const a = spline(P0, P1, P2, P3, percent - .01);
     const b = spline(P0, P1, P2, P3, percent);
 
@@ -86,6 +86,8 @@
   }
 
   const drawMedia = (media, progress) => {
+    context.lineCap = "round"
+    context.lineJoin = "round"
     if(media.type === "circle") {
       context.save()
       const sx = videoCanvas.width * media.width
@@ -103,8 +105,11 @@
         Math.min(1, 2 * progress) * 2 * Math.PI
       )
       context.restore()
-      context.strokeStyle = "red"
+      context.strokeStyle = "black"
       context.lineWidth = 10
+      context.stroke()
+      context.strokeStyle = "white"
+      context.lineWidth = 5
       context.stroke()
     } else if(media.type === "arrow") {
       context.beginPath()
@@ -118,12 +123,22 @@
           moved = true
         }
       }
-      const arrowHead = generateArrowHead(...media.points, Math.min(progress * 200, 100) / 100)
-      context.moveTo(arrowHead[0].x * videoCanvas.width, arrowHead[0].y * videoCanvas.height)
-      context.lineTo(arrowHead[1].x * videoCanvas.width, arrowHead[1].y * videoCanvas.height)
-      context.lineTo(arrowHead[2].x * videoCanvas.width, arrowHead[2].y * videoCanvas.height)
-      context.strokeStyle = "red"
+      const arrowHead = generateArrowHead(...media.points.map(({
+        x,
+        y
+      }) => ({
+        x : x * videoCanvas.width,
+        y : y * videoCanvas.height
+      })), Math.min(progress * 200, 100) / 100)
+      context.moveTo(arrowHead[1].x, arrowHead[1].y)
+      context.lineTo(arrowHead[0].x, arrowHead[0].y)
+      context.moveTo(arrowHead[1].x, arrowHead[1].y)
+      context.lineTo(arrowHead[2].x, arrowHead[2].y)
+      context.strokeStyle = "black"
       context.lineWidth = 10
+      context.stroke()
+      context.strokeStyle = "white"
+      context.lineWidth = 5
       context.stroke()
     }
   }
