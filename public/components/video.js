@@ -11,10 +11,110 @@
   
   // Draw video frames on the canvas
   const context = videoCanvas.getContext('2d');
+
+  const drawMedia = (media, progress) => {
+    if(media.type === "circle") {
+      context.save()
+      const sx = videoCanvas.width * media.width
+      const sy = videoCanvas.height * media.height
+      context.scale(
+        sx, 
+        sy
+      )
+      context.beginPath()
+      context.arc(
+        media.x * videoCanvas.width / sx, 
+        media.y * videoCanvas.height / sy, 
+        1, 
+        Math.max(0, (progress - .5) * 2) * 2 * Math.PI, 
+        Math.min(1, 2 * progress) * 2 * Math.PI
+      )
+      context.restore()
+      context.strokeStyle = "red"
+      context.lineWidth = 5
+      context.stroke()
+    }
+  }
+
+  videoCanvas.onclick = () => {
+    const preview = state.value.preview
+    if(preview) {
+      if(preview.type === "circle") {
+        if(preview.clicks === 0) {
+          state.set({
+            preview : {
+              ...preview,
+              clicks : preview.clicks + 1,
+            }
+          })
+        } else {
+          const { clip } = getActiveClip()
+          const index = state.value.timeline.indexOf(clip)
+          state.set({
+            preview : null,
+            timeline : [
+              ...state.value.timeline.slice(0, index),
+              {
+                ...clip,
+                media : [
+                  ...clip.media,
+                  preview
+                ]
+              },
+              ...state.value.timeline.slice(index + 1),
+            ]
+          })
+        }
+      }
+    }
+  }
+
+  videoCanvas.onmousemove = (e) => {
+    const bounds = videoCanvas.getBoundingClientRect()
+    const x = (e.pageX - bounds.left) / videoCanvas.width
+    const y = (e.pageY - bounds.top) / videoCanvas.height
+    const preview = state.value.preview
+    if(preview) {
+      if(preview.type === "circle") {
+        if(preview.clicks === 0) {
+          state.set({
+            preview : {
+              ...preview,
+              x,
+              y
+            }
+          })
+        } else {
+          state.set({
+            preview : {
+              ...preview,
+              width : Math.abs(x - preview.x),
+              height : Math.abs(y - preview.y)
+            }
+          })
+        }
+      }
+    }
+  }
   
   function drawVideoFrame() {
     requestAnimationFrame(drawVideoFrame);
     context.drawImage(videoElement, 0, 0, videoCanvas.width, videoCanvas.height);
+    const preview = state.value.preview
+    if(preview) {
+      drawMedia(preview, .5)
+    }
+    const result = getActiveClip()
+    if(result) {
+      const { clip, start } = result
+      clip.media.forEach(media => {
+        const myStart = start + media.start
+        const myEnd = myStart + media.length
+        if(state.value.time >= myStart && state.value.time <= myEnd) {
+          drawMedia(media, (state.value.time - myStart) / media.length)
+        }
+      })
+    }
     if(state.value.isPlaying) {
       state.set({ 
         time: startOffset + (Date.now() - startTime) / 1000,

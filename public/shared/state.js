@@ -5,7 +5,8 @@ const state = {
         projects : [],
         project : "",
         timeline : [],
-        time : 0
+        time : 0,
+        preview: null
     },
     callbacks : [],
     set(state) {

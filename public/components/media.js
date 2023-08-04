@@ -53,10 +53,11 @@
                 clipDiv.style.position = `absolute`
                 clipDiv.style.background = "green"
                 mediaDiv.appendChild(clipDiv)
-
-                const canvas = await drawAudioWaveform(media.src)
-                clipDiv.appendChild(canvas)
-                canvas.style.width = canvas.style.height = "100%"
+                if(media.type === "audio") {
+                    const canvas = await drawAudioWaveform(media.src)
+                    clipDiv.appendChild(canvas)
+                    canvas.style.width = canvas.style.height = "100%"
+                }
             })
             startOffset += clip.length
         })
