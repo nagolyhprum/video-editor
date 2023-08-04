@@ -1,9 +1,8 @@
 {
     const mediaDiv = document.querySelector("#media")
 
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
     async function drawAudioWaveform(src) {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const result = await fetch(src)
         const arrayBuffer = await result.arrayBuffer()
         return new Promise(resolve => {

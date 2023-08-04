@@ -130,7 +130,7 @@
         x : x * videoCanvas.width,
         y : y * videoCanvas.height
       })), Math.min(progress * 200, 100) / 100)
-      context.moveTo(arrowHead[1].x, arrowHead[1].y)
+      context.lineTo(arrowHead[1].x, arrowHead[1].y)
       context.lineTo(arrowHead[0].x, arrowHead[0].y)
       context.moveTo(arrowHead[1].x, arrowHead[1].y)
       context.lineTo(arrowHead[2].x, arrowHead[2].y)

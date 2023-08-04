@@ -1,4 +1,40 @@
 {
+    async function findTimeOffsetOfFirstSound(audioFile) {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const response = await fetch(audioFile);
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = await audioContext.decodeAudioData(arrayBuffer);
+        const offsetInSeconds = await analyzeAudioBuffer(buffer, audioContext);
+        audioContext.close();
+        return offsetInSeconds;
+      }
+      
+      function analyzeAudioBuffer(buffer, audioContext) {
+        return new Promise((resolve) => {
+          const source = audioContext.createBufferSource();
+          source.buffer = buffer;
+      
+          const scriptNode = audioContext.createScriptProcessor(4096, 1, 1);
+            let offset = 0;
+          scriptNode.onaudioprocess = function (event) {
+              const inputData = event.inputBuffer.getChannelData(0);
+              
+            for (let i = 0; i < inputData.length; i++) {
+              if (Math.abs(inputData[i]) >= .1) {
+                const offsetInSeconds = (i + offset) / audioContext.sampleRate;
+                resolve(offsetInSeconds);
+                scriptNode.onaudioprocess = null;
+                return;
+              }
+            }
+            offset += inputData.length;
+          };
+      
+          source.connect(scriptNode);
+          scriptNode.connect(audioContext.destination);
+          source.start();
+        });
+      }
 
     let mediaRecorder;
     let recordedChunks = [];
@@ -41,6 +77,8 @@
                     const path = `/projects/${state.value.project}/audio/${crypto.randomUUID()}.wav`;
                     await uploadFile({ file: audioBlob, pathname: path });
 
+                    const offset = await findTimeOffsetOfFirstSound(`/download/${path}`);
+
                     const audio = new Audio(URL.createObjectURL(audioBlob));
                     audio.onseeked = () => {
                         const { clip, start } = getActiveClip()
@@ -54,7 +92,7 @@
                                         media : [...clip.media, {
                                             type : "audio",
                                             src : `/download/${path}`,
-                                            start : state.value.time - start,
+                                            start : state.value.time - start - offset,
                                             length : audio.duration
                                         }]
                                     },
