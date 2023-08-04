@@ -2,6 +2,9 @@
 
   const videoCanvas = document.getElementById('videoCanvas');
   const playButton = document.getElementById('playButton');
+  const recordBtn = document.getElementById('record');
+
+  const thickness = 20;
 
   let startTime = 0;
   let startOffset = 0;
@@ -39,7 +42,7 @@
   }
 
   function generateArrowHead(P0, P1, P2, P3, percent) {
-    const arrowSize = 20;
+    const arrowSize = thickness * 4;
     const a = spline(P0, P1, P2, P3, percent - .01);
     const b = spline(P0, P1, P2, P3, percent);
 
@@ -101,15 +104,17 @@
         media.x * videoCanvas.width / sx, 
         media.y * videoCanvas.height / sy, 
         1, 
-        Math.max(0, (progress - .5) * 2) * 2 * Math.PI, 
-        Math.min(1, 2 * progress) * 2 * Math.PI
+        Math.max(0, (progress - .5) * 2) * (2 * Math.PI + Math.PI / 4), 
+        Math.min(1, 2 * progress) * (2 * Math.PI + Math.PI / 4)
       )
       context.restore()
       context.strokeStyle = "black"
-      context.lineWidth = 10
+      context.lineWidth = 2 * thickness
+
       context.stroke()
       context.strokeStyle = "white"
-      context.lineWidth = 5
+      context.lineWidth = thickness
+
       context.stroke()
     } else if(media.type === "arrow") {
       context.beginPath()
@@ -135,10 +140,12 @@
       context.moveTo(arrowHead[1].x, arrowHead[1].y)
       context.lineTo(arrowHead[2].x, arrowHead[2].y)
       context.strokeStyle = "black"
-      context.lineWidth = 10
+      context.lineWidth = 2 * thickness
+
       context.stroke()
       context.strokeStyle = "white"
-      context.lineWidth = 5
+      context.lineWidth = thickness
+
       context.stroke()
     }
   }
@@ -176,6 +183,7 @@
           ...state.value.timeline.slice(0, index),
           {
             ...clip,
+            length : Math.max(clip.length, preview.length + preview.start),
             media : [
               ...clip.media,
               preview
@@ -245,6 +253,17 @@
           drawMedia(media, (state.value.time - myStart) / media.length)
         }
       })
+      if(clip.text) {
+        const OFFSET = 50 * devicePixelRatio
+        context.textBaseline = "top"
+        context.textAlign = "center"
+        context.font = `bold ${75 * devicePixelRatio}px sans-serif`
+        context.strokeStyle = "black"
+        context.lineWidth = 3
+        context.fillStyle = "white"
+        context.fillText(clip.text, videoCanvas.width / 2, OFFSET, videoCanvas.width - OFFSET * 2)
+        context.strokeText(clip.text, videoCanvas.width / 2, OFFSET, videoCanvas.width - OFFSET * 2)
+      }
     }
     if(state.value.isPlaying) {
       state.set({ 
@@ -262,6 +281,22 @@
       isPlaying : !state.value.isPlaying
     })
   });
+
+
+  recordBtn.onclick = () => {
+    videoCanvas.requestFullscreen()
+    videoCanvas.width = videoElement.videoWidth * devicePixelRatio
+    videoCanvas.height = videoElement.videoHeight * devicePixelRatio
+    videoCanvas.style.cursor = "none"
+    setTimeout(() => {
+      startOffset = 0
+      startTime = Date.now()
+      state.set({
+        isPlaying : true,
+        time : 0
+      })
+    }, 5000)
+  }
 
   state.watch(["time"], time => {
     if(!state.value.isPlaying) {

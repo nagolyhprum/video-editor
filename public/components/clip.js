@@ -19,7 +19,8 @@
                     type : "image",
                     start : length + clip.start,
                     length : 5,
-                    media : []
+                    media : [],
+                    text : ""
                 },
                 {
                     ...clip,

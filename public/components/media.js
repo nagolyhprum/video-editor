@@ -50,12 +50,19 @@
                 clipDiv.style.width = `${media.length * FPS}px`
                 clipDiv.style.height = `100%`
                 clipDiv.style.position = `absolute`
-                clipDiv.style.background = "green"
                 mediaDiv.appendChild(clipDiv)
                 if(media.type === "audio") {
                     const canvas = await drawAudioWaveform(media.src)
                     clipDiv.appendChild(canvas)
                     canvas.style.width = canvas.style.height = "100%"
+                    canvas.style.background = "red"
+                    canvas.style.zIndex = 10;
+                } else if(media.type === "circle") {
+                    clipDiv.style.opacity = .5
+                    clipDiv.style.background = "green"
+                } else if(media.type === "arrow") {
+                    clipDiv.style.opacity = .5
+                    clipDiv.style.background = "blue"
                 }
             })
             startOffset += clip.length

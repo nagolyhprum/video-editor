@@ -27,9 +27,7 @@
             flex-direction : row;
         }
         #media {
-            width : 100%;
             height : 100px;
-            background : blue;
             position : relative;
         }
     </style>
@@ -53,6 +51,8 @@
 
         <button id="circle">Circle</button>
         <button id="arrow">Arrow</button>
+        <button id="record">Record</button>
+        <input id="text" />
     </div>
     <script src="/shared/util.js"></script>
     <script src="/shared/api.js"></script>
@@ -66,6 +66,7 @@
   <script src="/components/timeline.js"></script>
   <script src="/components/clip.js"></script>
   <script src="/components/audio.js"></script>
+  <script src="/components/text.js"></script>
   <script>    
         const test = async () => {
             const files = await listFiles({})

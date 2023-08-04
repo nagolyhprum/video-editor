@@ -105,11 +105,11 @@
                                     ...state.value.timeline.slice(0, index),
                                     {
                                         ...clip,
-                                        length : audio.duration,
+                                        length : audio.duration - offset,
                                         media : [{
                                             type : "audio",
                                             src : `/download/${path}`,
-                                            start : 0,
+                                            start : -offset,
                                             length : audio.duration
                                         }]
                                     },
