@@ -30,6 +30,15 @@
             height : 100px;
             position : relative;
         }
+        #row {
+            display : flex;
+            flex-direction : row;
+        }
+        #stats {
+            white-space: pre;
+            overflow : auto;
+            max-height : 360px;
+        }
     </style>
 </head>
 <body>
@@ -37,7 +46,10 @@
         <ul id="projects"></ul>
         <div id="project"></div>
         <!-- Canvas element for video playback -->
-        <canvas id="videoCanvas" width="640" height="360" style="border: 2px solid black;"></canvas>
+        <div id="row">
+            <canvas id="videoCanvas" width="640" height="360" style="border: 2px solid black;"></canvas>
+            <div id="stats"></div>
+        </div>
         <div id="timeline">
             <div id="thumbnails"></div>
             <div id="media"></div>
@@ -67,6 +79,7 @@
   <script src="/components/clip.js"></script>
   <script src="/components/audio.js"></script>
   <script src="/components/text.js"></script>
+  <script src="/components/stats.js"></script>
   <script>    
         const test = async () => {
             const files = await listFiles({})
