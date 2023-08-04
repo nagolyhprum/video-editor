@@ -12,6 +12,79 @@
   // Draw video frames on the canvas
   const context = videoCanvas.getContext('2d');
 
+
+  function rotatePoint(pointA, pointB, theta) {
+    // Convert theta to radians
+    const radians = (theta * Math.PI) / 180;
+
+    // Find the distance between pointA and pointB
+    const dx = pointA.x - pointB.x;
+    const dy = pointA.y - pointB.y;
+
+    // Calculate the new coordinates after rotation
+    const x_new = pointB.x + dx * Math.cos(radians) - dy * Math.sin(radians);
+    const y_new = pointB.y + dx * Math.sin(radians) + dy * Math.cos(radians);
+
+    return { x: x_new, y: y_new };
+  }
+
+  function normalizePoint(point) {
+    const magnitude = Math.sqrt(point.x * point.x + point.y * point.y);
+    if (magnitude === 0) {
+      // Handle special case of a point at the origin (0, 0)
+      return { x: 0, y: 0 };
+    } else {
+      return { x: point.x / magnitude, y: point.y / magnitude };
+    }
+  }
+
+  function generateArrowHead(P0, P1, P2, P3, percent) {
+    const arrowSize = .1;
+    const a = spline(P0, P1, P2, P3, percent - .01);
+    const b = spline(P0, P1, P2, P3, percent);
+
+    const d = normalizePoint({
+      x: a.x - b.x,
+      y: a.y - b.y
+    });
+
+    const left = rotatePoint(
+      {
+        x: b.x + d.x * arrowSize,
+        y: b.y + d.y * arrowSize
+      },
+      b,
+      45
+    );
+
+    const right = rotatePoint(
+      {
+        x: b.x + d.x * arrowSize,
+        y: b.y + d.y * arrowSize
+      },
+      b,
+      -45
+    );
+
+    return [left, b, right];
+  }
+
+  function spline(P0, P1, P2, P3, percent) {
+    // Ensure t is within the range [0, 1]
+    const t = Math.min(Math.max(percent, 0), 1);
+
+    const mt = 1 - t;
+    const mt2 = mt * mt;
+    const mt3 = mt2 * mt;
+    const t2 = t * t;
+    const t3 = t2 * t;
+
+    const x = mt3 * P0.x + 3 * mt2 * t * P1.x + 3 * mt * t2 * P2.x + t3 * P3.x;
+    const y = mt3 * P0.y + 3 * mt2 * t * P1.y + 3 * mt * t2 * P2.y + t3 * P3.y;
+
+    return { x, y };
+  }
+
   const drawMedia = (media, progress) => {
     if(media.type === "circle") {
       context.save()
@@ -31,7 +104,26 @@
       )
       context.restore()
       context.strokeStyle = "red"
-      context.lineWidth = 5
+      context.lineWidth = 10
+      context.stroke()
+    } else if(media.type === "arrow") {
+      context.beginPath()
+      let moved = false
+      for(let from = Math.max(progress * 200 - 100, 0); from <= Math.min(progress * 200, 100); from += 1) {
+        const point = spline(...media.points, from / 100)
+        if(moved) {
+          context.lineTo(point.x * videoCanvas.width, point.y * videoCanvas.height)
+        } else {
+          context.moveTo(point.x * videoCanvas.width, point.y * videoCanvas.height)
+          moved = true
+        }
+      }
+      const arrowHead = generateArrowHead(...media.points, Math.min(progress * 200, 100) / 100)
+      context.moveTo(arrowHead[0].x * videoCanvas.width, arrowHead[0].y * videoCanvas.height)
+      context.lineTo(arrowHead[1].x * videoCanvas.width, arrowHead[1].y * videoCanvas.height)
+      context.lineTo(arrowHead[2].x * videoCanvas.width, arrowHead[2].y * videoCanvas.height)
+      context.strokeStyle = "red"
+      context.lineWidth = 10
       context.stroke()
     }
   }
@@ -47,25 +139,36 @@
               clicks : preview.clicks + 1,
             }
           })
-        } else {
-          const { clip } = getActiveClip()
-          const index = state.value.timeline.indexOf(clip)
+          return;
+        }
+      } else if(preview.type === "arrow") {
+        if(preview.clicks + 1 < preview.points.length) {
           state.set({
-            preview : null,
-            timeline : [
-              ...state.value.timeline.slice(0, index),
-              {
-                ...clip,
-                media : [
-                  ...clip.media,
-                  preview
-                ]
-              },
-              ...state.value.timeline.slice(index + 1),
-            ]
+            preview : {
+              ...preview,
+              clicks : preview.clicks + 1,
+            }
           })
+          return;
         }
       }
+
+      const { clip } = getActiveClip()
+      const index = state.value.timeline.indexOf(clip)
+      state.set({
+        preview : null,
+        timeline : [
+          ...state.value.timeline.slice(0, index),
+          {
+            ...clip,
+            media : [
+              ...clip.media,
+              preview
+            ]
+          },
+          ...state.value.timeline.slice(index + 1),
+        ]
+      })
     }
   }
 
@@ -93,6 +196,19 @@
             }
           })
         }
+      } else if(preview.type === "arrow") {
+        const remap = [0, 3, 1, 2]
+        const index = remap[preview.clicks]
+        state.set({
+          preview : {
+            ...preview,
+            points : [
+              ...preview.points.slice(0, index), 
+              { x, y },
+              ...preview.points.slice(index + 1), 
+            ]
+          }
+        })
       }
     }
   }
