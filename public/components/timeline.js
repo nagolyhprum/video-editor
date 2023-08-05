@@ -74,7 +74,7 @@
                 const height = 100
                 // add canvas
                 const canvas = document.createElement('canvas');
-                canvas.width = length * FPS
+                canvas.width = Math.round(length * FPS)
                 canvas.height = height
                 canvas.id = id
                 // add child at index
@@ -92,8 +92,9 @@
                     await seekVideo(video, start + i * (width / FPS))
                     context.drawImage(video, i * width, 0, width, height)
                     context.strokeStyle = "purple"
-                    context.lineWidth = 10
-                    context.strokeRect(5, 5, canvas.width - 10, canvas.height - 10)
+                    const lineWidth = 1
+                    context.lineWidth = lineWidth
+                    context.strokeRect(lineWidth / 2, lineWidth / 2, canvas.width - lineWidth, canvas.height - lineWidth)
                 }
             }, Promise.resolve())
         }
