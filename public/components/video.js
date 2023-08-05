@@ -329,7 +329,7 @@
               updateCurrentTime(clip.start + offset)
               videoElement.play()
             } else if(clip.type === "image") {
-              updateCurrentTime(clip.start)
+              videoElement.currentTime = clip.start
               videoElement.pause()
             }
           }, (startOffset - state.value.time) * 1000))

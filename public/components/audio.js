@@ -101,6 +101,7 @@
                             })
                         } else {
                             state.set({
+                                time : start,
                                 timeline : [
                                     ...state.value.timeline.slice(0, index),
                                     {
