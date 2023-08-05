@@ -51,8 +51,6 @@
     })
     
     state.watch(["timeline", "project"], async (timeline, project) => { 
-        const scrollLeft = timelineDiv.scrollLeft
-
         const timelineIds = timeline.map(({ id }) => id)
         const childrenIds = Array.from(thumbnailsDiv.children).map(({ id }) => id)
 
@@ -99,11 +97,11 @@
                 }
             }, Promise.resolve())
         }
-        timelineDiv.scrollLeft = scrollLeft
     })
 
     state.watch(["timeline"], async (timeline) => {
-        if(state.value.project) {            
+        if(state.value.project) {      
+            console.log({ timeline })      
             await uploadFile({
                 file : new Blob([JSON.stringify(timeline)]),
                 pathname : `/projects/${state.value.project}/timeline.json`

@@ -58,6 +58,10 @@
             background : blue;
             color : white;
         }
+        textarea {
+            min-width : 400px;
+            min-height : 200px;
+        }
     </style>
 </head>
 <body>
@@ -67,7 +71,10 @@
         <!-- Canvas element for video playback -->
         <div id="row">
             <canvas id="videoCanvas" width="640" height="360" style="border: 2px solid black;"></canvas>
-            <div id="stats"></div>
+            <div>
+                <div id="stats"></div>
+                <textarea></textarea>
+            </div>
         </div>
         <div id="timeline">
             <div id="thumbnails"></div>
@@ -76,7 +83,6 @@
         </div>
         <div id="controls">
             <button id="playButton">Play / Pause</button>
-    
             <div>
                 Edits
                 <button id="split">Split</button>

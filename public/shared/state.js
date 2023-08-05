@@ -69,8 +69,10 @@ const init = async () => {
 
 const getActiveClip = () => {
     let start = 0
-    for(let index in state.value.timeline) {
-        const clip = state.value.timeline[index]
+    return state.value.timeline.reduce((active, clip, index) => {
+        if(active) {
+            return active
+        }
         if(start + clip.length > state.value.time) {
             return {
                 clip,
@@ -79,7 +81,7 @@ const getActiveClip = () => {
             }
         }
         start += clip.length
-    }
+    }, null)
 }
 
 init()
