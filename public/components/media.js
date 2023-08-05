@@ -89,11 +89,12 @@
                         clipDiv.appendChild(canvas)
                         canvas.style.width = canvas.style.height = "100%"
                         canvas.style.background = "red"
-                        clipDiv.style.zIndex = 10;
                     } else if(media.type === "circle") {
                         clipDiv.style.background = "green"
+                        clipDiv.style.zIndex = 10;
                     } else if(media.type === "arrow") {
                         clipDiv.style.background = "blue"
+                        clipDiv.style.zIndex = 10;
                     }
                 }
             })
