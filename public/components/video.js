@@ -334,7 +334,6 @@
             }
           }, (startOffset - state.value.time) * 1000))
         }
-        // TODO : MEDIA
         clip.media.forEach(media => {
           if(media.start + startOffset + media.length >= state.value.time) {
             const finalOffset = startOffset

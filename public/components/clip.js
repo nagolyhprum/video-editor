@@ -12,6 +12,7 @@
         const side = Math.round((state.value.time - start) / clip.length) * 2 - 1
         const other = state.value.timeline[index + side]
         const lowerSide = Math.min(index, index + side)
+        const upperSide = Math.max(index, index + side)
         const newStart = Math.min(clip.start, other.start)
         const timeline = [
             ...state.value.timeline.slice(0, lowerSide),
@@ -19,8 +20,14 @@
                 type : "video",
                 start : newStart,
                 length : Math.max(clip.start + clip.length, other.start + other.length) - newStart,
-                text : "",
-                media : []
+                text : `${state.value.timeline[lowerSide].text} ${state.value.timeline[upperSide].text}`,
+                media : [
+                    ...state.value.timeline[lowerSide].media,
+                    ...state.value.timeline[upperSide].media.map(media => ({
+                        ...media,
+                        start : media.start + (state.value.timeline[upperSide].start - state.value.timeline[lowerSide].start)
+                    })),
+                ]
             },
             ...state.value.timeline.slice(lowerSide + 2),
         ]
