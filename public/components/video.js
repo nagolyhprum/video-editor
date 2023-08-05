@@ -238,7 +238,18 @@
   
   function drawVideoFrame() {
     requestAnimationFrame(drawVideoFrame);
-    context.drawImage(videoElement, 0, 0, videoCanvas.width, videoCanvas.height);
+
+    const scale = state.value.scale / 100
+    const width = videoCanvas.width * scale
+    const height = videoCanvas.height * scale
+
+    context.drawImage(
+      videoElement, 
+      videoCanvas.width / 2 - width / 2, 
+      videoCanvas.height / 2 - height / 2, 
+      width, 
+      height
+    );
     const preview = state.value.preview
     if(preview) {
       drawMedia(preview, .5)
