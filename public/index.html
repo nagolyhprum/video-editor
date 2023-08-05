@@ -9,8 +9,6 @@
         #timeline {
             overflow : auto;
             width : 100%;
-        }
-        #timeline {
             position : relative;
         }
         #marker {
@@ -25,6 +23,12 @@
         #thumbnails {
             display : flex;
             flex-direction : row;
+        }
+        #media div {
+            opacity: 0.7;
+        }
+        #media div:hover {
+            opacity: 1;
         }
         #media {
             height : 100px;
@@ -64,6 +68,8 @@
         <button id="circle">Circle</button>
         <button id="arrow">Arrow</button>
         <button id="record">Record</button>
+        <button id="start">Start</button>
+        <button id="beginning">Beginning</button>
         <input id="text" />
     </div>
     <script src="/shared/util.js"></script>

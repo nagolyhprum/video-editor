@@ -58,10 +58,8 @@
                     canvas.style.background = "red"
                     canvas.style.zIndex = 10;
                 } else if(media.type === "circle") {
-                    clipDiv.style.opacity = .5
                     clipDiv.style.background = "green"
                 } else if(media.type === "arrow") {
-                    clipDiv.style.opacity = .5
                     clipDiv.style.background = "blue"
                 }
             })

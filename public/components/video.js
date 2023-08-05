@@ -4,7 +4,7 @@
   const playButton = document.getElementById('playButton');
   const recordBtn = document.getElementById('record');
 
-  const thickness = 20;
+  const thickness = () => state.value.isRecording ? 20 : 5;
 
   let startTime = 0;
   let startOffset = 0;
@@ -42,7 +42,7 @@
   }
 
   function generateArrowHead(P0, P1, P2, P3, percent) {
-    const arrowSize = thickness * 4;
+    const arrowSize = thickness() * 4;
     const a = spline(P0, P1, P2, P3, percent - .01);
     const b = spline(P0, P1, P2, P3, percent);
 
@@ -109,11 +109,11 @@
       )
       context.restore()
       context.strokeStyle = "black"
-      context.lineWidth = 2 * thickness
+      context.lineWidth = 2 * thickness()
 
       context.stroke()
       context.strokeStyle = "white"
-      context.lineWidth = thickness
+      context.lineWidth = thickness()
 
       context.stroke()
     } else if(media.type === "arrow") {
@@ -140,11 +140,11 @@
       context.moveTo(arrowHead[1].x, arrowHead[1].y)
       context.lineTo(arrowHead[2].x, arrowHead[2].y)
       context.strokeStyle = "black"
-      context.lineWidth = 2 * thickness
+      context.lineWidth = 2 * thickness()
 
       context.stroke()
       context.strokeStyle = "white"
-      context.lineWidth = thickness
+      context.lineWidth = thickness()
 
       context.stroke()
     }
@@ -254,10 +254,10 @@
         }
       })
       if(clip.text) {
-        const OFFSET = 50 * devicePixelRatio
+        const OFFSET = (state.value.isRecording ? 50 : 10) * devicePixelRatio
         context.textBaseline = "top"
         context.textAlign = "center"
-        context.font = `bold ${75 * devicePixelRatio}px sans-serif`
+        context.font = `bold ${(state.value.isRecording ? 75 : 24) * devicePixelRatio}px sans-serif`
         context.strokeStyle = "black"
         context.lineWidth = 3
         context.fillStyle = "white"
@@ -293,7 +293,8 @@
       startTime = Date.now()
       state.set({
         isPlaying : true,
-        time : 0
+        time : 0,
+        isRecording: true
       })
     }, 5000)
   }

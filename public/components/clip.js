@@ -2,6 +2,21 @@
     const splitBtn = document.getElementById('split');
     const deleteBtn = document.getElementById('delete');
     const stillBtn = document.getElementById('still');
+    const startBtn = document.getElementById('start');
+    const beginningBtn = document.getElementById('beginning');
+
+    beginningBtn.onclick = () => {
+        state.set({
+            time : 0
+        })
+    }
+
+    startBtn.onclick = () => {
+        const { start } = getActiveClip()
+        state.set({
+            time : start
+        })
+    }
 
     stillBtn.onclick = () => {
         const { clip, start } = getActiveClip()
