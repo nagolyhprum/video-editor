@@ -182,6 +182,7 @@
           ...state.value.timeline.slice(0, index),
           {
             ...clip,
+            id : crypto.randomUUID(),
             length : Math.max(clip.length, preview.length + preview.start),
             media : [
               ...clip.media,

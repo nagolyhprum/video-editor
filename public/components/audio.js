@@ -105,6 +105,7 @@
                                     ...state.value.timeline.slice(0, index),
                                     {
                                         ...clip,
+                                        id : crypto.randomUUID(),
                                         length : audio.duration - offset,
                                         media : [{
                                             id : crypto.randomUUID(),
