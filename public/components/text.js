@@ -1,6 +1,40 @@
 {
     const textInput = document.querySelector('#text');
     const scaleInput = document.querySelector('#scale');
+    const transcriptBtn = document.querySelector('#transcript');
+
+    function copyTextToClipboard(text) {
+        // Create a temporary textarea element to hold the text
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed'; // Make it invisible and out of view
+        textarea.style.opacity = 0;
+        document.body.appendChild(textarea);
+      
+        // Select the text in the textarea
+        textarea.select();
+      
+        try {
+          // Execute the copy command
+          const successful = document.execCommand('copy');
+          if (successful) {
+            console.log('Text copied to clipboard!');
+          } else {
+            console.error('Copying text to clipboard failed.');
+          }
+        } catch (err) {
+          console.error('Unable to copy text: ', err);
+        }
+      
+        // Remove the temporary textarea from the DOM
+        document.body.removeChild(textarea);
+      }
+
+    transcriptBtn.onclick = () => {
+        const transcript = state.value.timeline.map(clip => clip.text.trim()).join("\n").replace(/[\n\r]+/g, "\n\n")
+
+        copyTextToClipboard(transcript)
+    }
 
     state.watch(["scale"], scale => {
         scaleInput.value = scale

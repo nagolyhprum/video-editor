@@ -323,12 +323,6 @@
 
   const timeouts = []
 
-  const updateCurrentTime = (target) => {
-    if(Math.abs(videoElement.currentTime - target) >= .1) {
-      videoElement.currentTime = target
-    }
-  }
-
   state.watch(["isPlaying"], isPlaying => {
     if(isPlaying) {      
       let startOffset = 0;
@@ -337,7 +331,7 @@
           const offset = Math.max(0, state.value.time - startOffset)
           timeouts.push(setTimeout(() => {            
             if(clip.type === "video") {
-              updateCurrentTime(clip.start + offset)
+              videoElement.currentTime = clip.start + offset
               videoElement.play()
             } else if(clip.type === "image") {
               videoElement.currentTime = clip.start
