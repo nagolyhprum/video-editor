@@ -35,7 +35,7 @@
             height : 100px;
             position : relative;
         }
-        #row {
+        .row {
             display : flex;
             flex-direction : row;
         }
@@ -69,41 +69,38 @@
         <ul id="projects"></ul>
         <div id="project"></div>
         <!-- Canvas element for video playback -->
-        <div id="row">
+        <div class="row">
             <canvas id="videoCanvas" width="640" height="360" style="border: 2px solid black;"></canvas>
-            <div>
+            <div id="controls">
                 <div id="stats"></div>
-                <textarea></textarea>
+                <button id="playButton">Play / Pause</button>
+                <div>
+                    Edits
+                    <button id="split">Split</button>
+                    <button id="delete">Delete</button>
+                    <button id="still">Still</button>
+                    <button id="restore">Restore</button>
+                </div>
+                <div>
+                    Marker
+                    <button id="start">Start of clip</button>
+                    <button id="beginning">Start of video</button>
+                </div>
+                <div>
+                    Media
+                    <button id="audio">Audio</button>
+                    <button id="circle">Circle</button>
+                    <button id="arrow">Arrow</button>
+                </div>
             </div>
+            <textarea id="text"></textarea>
         </div>
         <div id="timeline">
             <div id="thumbnails"></div>
             <div id="media"></div>
             <div id="marker"></div>
         </div>
-        <div id="controls">
-            <button id="playButton">Play / Pause</button>
-            <div>
-                Edits
-                <button id="split">Split</button>
-                <button id="delete">Delete</button>
-                <button id="still">Still</button>
-                <button id="restore">Restore</button>
-            </div>
-            <div>
-                Marker
-                <button id="start">Start of clip</button>
-                <button id="beginning">Start of video</button>
-            </div>
-            <div>
-                Media
-                <button id="audio">Audio</button>
-                <button id="circle">Circle</button>
-                <button id="arrow">Arrow</button>
-            </div>
-            <input id="text" />
-            <button id="record">Record</button>
-        </div>
+        <button id="record">Record</button>
     </div>
     <script src="/shared/util.js"></script>
     <script src="/shared/api.js"></script>

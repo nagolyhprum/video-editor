@@ -74,6 +74,7 @@
                     id : crypto.randomUUID(),
                     start : length + clip.start,
                     length : clip.length - length,
+                    text: "",
                     media : clip.media.filter(media => media.start >= length).map(media => ({
                         ...media,
                         id : crypto.randomUUID(),
@@ -112,6 +113,7 @@
                     id : crypto.randomUUID(),
                     start : length + clip.start,
                     length : clip.length - length,
+                    text: "",
                     media : clip.media.filter(media => media.start >= length).map(media => ({
                         ...media,
                         id : crypto.randomUUID(),

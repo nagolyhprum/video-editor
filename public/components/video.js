@@ -253,7 +253,7 @@
           drawMedia(media, (state.value.time - myStart) / media.length)
         }
       })
-      if(clip.text) {
+      if(clip.text && clip.type === "image") {
         const OFFSET = (state.value.isRecording ? 50 : 10) * devicePixelRatio
         context.textBaseline = "top"
         context.textAlign = "center"
