@@ -1,6 +1,24 @@
 {
     const mediaDiv = document.querySelector("#media")
 
+    const deleteMedia = (clip, media) => {
+        const clipIndex = state.value.timeline.indexOf(clip)
+        const mediaIndex = clip.media.indexOf(media)
+        state.set({
+            timeline : [
+                ...state.value.timeline.slice(0, clipIndex),
+                {
+                    ...clip,
+                    media : [
+                        ...clip.media.slice(0, mediaIndex),
+                        ...clip.media.slice(mediaIndex + 1)
+                    ]
+                },
+                ...state.value.timeline.slice(clipIndex + 1)
+            ]
+        })
+    }
+
     async function drawAudioWaveform(src) {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)();
         const result = await fetch(src)
@@ -50,6 +68,13 @@
                 clipDiv.style.width = `${media.length * FPS}px`
                 clipDiv.style.height = `100%`
                 clipDiv.style.position = `absolute`
+                clipDiv.oncontextmenu = (e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if(confirm("Are you sure you want to delete this media?")) {
+                        deleteMedia(clip, media)
+                    }
+                }
                 mediaDiv.appendChild(clipDiv)
                 if(media.type === "audio") {
                     const canvas = await drawAudioWaveform(media.src)
