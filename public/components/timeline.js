@@ -12,7 +12,9 @@
         })
     }    
     timelineDiv.onmousedown = (e) => {
-        moveMarker(e)
+        if(e.button === 0) {
+            moveMarker(e)
+        }
     }
     timelineDiv.onmousemove = (e) => {
         if(mouse) {
