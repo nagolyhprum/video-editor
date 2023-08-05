@@ -9,16 +9,16 @@
     restoreBtn.onclick = () => {        
         const { clip, start, index } = getActiveClip()
         const side = Math.round((state.value.time - start) / clip.length) * 2 - 1
-        const other = state.value.timeline[index + side]
         const lowerSide = state.value.timeline[Math.min(index, index + side)]
         const upperSide = state.value.timeline[Math.max(index, index + side)]
-        const newStart = Math.min(clip.start, other.start)
+        const newStart = lowerSide.start
+        const outIndex = Math.min(index, index + side)
         const timeline = [
-            ...state.value.timeline.slice(0, lowerSide),
+            ...state.value.timeline.slice(0, outIndex),
             {
                 type : "video",
                 start : newStart,
-                length : Math.max(clip.start + clip.length, other.start + other.length) - newStart,
+                length : upperSide.start + upperSide.length - newStart,
                 text : `${lowerSide.text} ${upperSide.text}`,
                 media : [
                     ...lowerSide.media,
@@ -29,7 +29,7 @@
                     })),
                 ]
             },
-            ...state.value.timeline.slice(lowerSide + 2),
+            ...state.value.timeline.slice(outIndex + 2),
         ]
         state.set({
             timeline

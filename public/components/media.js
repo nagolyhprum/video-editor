@@ -69,11 +69,7 @@
         let startOffset = 0;
         timeline.forEach(clip => {
             clip.media.forEach(async (media, index) => {
-                // do not add if already added
-                if(document.getElementById(media.id)) {
-                    return
-                }
-                const clipDiv = document.createElement("div")
+                const clipDiv = document.getElementById(media.id) || document.createElement("div")
                 clipDiv.style.left = `${(startOffset + media.start) * FPS}px`
                 clipDiv.style.width = `${media.length * FPS}px`
                 clipDiv.style.height = `100%`
@@ -86,23 +82,19 @@
                         deleteMedia(clip, media)
                     }
                 }
-                // add at proper index
-                const child = mediaDiv.children[index]
-                if(child) {
-                    mediaDiv.insertBefore(clipDiv, child)
-                } else {
+                if(!clipDiv.parentNode) {
                     mediaDiv.appendChild(clipDiv)
-                }
-                if(media.type === "audio") {
-                    const canvas = await drawAudioWaveform(media.src)
-                    clipDiv.appendChild(canvas)
-                    canvas.style.width = canvas.style.height = "100%"
-                    canvas.style.background = "red"
-                    canvas.style.zIndex = 10;
-                } else if(media.type === "circle") {
-                    clipDiv.style.background = "green"
-                } else if(media.type === "arrow") {
-                    clipDiv.style.background = "blue"
+                    if(media.type === "audio") {
+                        const canvas = await drawAudioWaveform(media.src)
+                        clipDiv.appendChild(canvas)
+                        canvas.style.width = canvas.style.height = "100%"
+                        canvas.style.background = "red"
+                        clipDiv.style.zIndex = 10;
+                    } else if(media.type === "circle") {
+                        clipDiv.style.background = "green"
+                    } else if(media.type === "arrow") {
+                        clipDiv.style.background = "blue"
+                    }
                 }
             })
             startOffset += clip.length

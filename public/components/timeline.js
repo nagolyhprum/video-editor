@@ -101,7 +101,6 @@
 
     state.watch(["timeline"], async (timeline) => {
         if(state.value.project) {      
-            console.log({ timeline })      
             await uploadFile({
                 file : new Blob([JSON.stringify(timeline)]),
                 pathname : `/projects/${state.value.project}/timeline.json`
