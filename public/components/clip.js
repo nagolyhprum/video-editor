@@ -3,7 +3,31 @@
     const deleteBtn = document.getElementById('delete');
     const stillBtn = document.getElementById('still');
     const startBtn = document.getElementById('start');
+    const restoreBtn = document.getElementById('restore');
     const beginningBtn = document.getElementById('beginning');
+
+    restoreBtn.onclick = () => {        
+        const { clip, start } = getActiveClip()
+        const index = state.value.timeline.indexOf(clip)
+        const side = Math.round((state.value.time - start) / clip.length) * 2 - 1
+        const other = state.value.timeline[index + side]
+        const lowerSide = Math.min(index, index + side)
+        const newStart = Math.min(clip.start, other.start)
+        const timeline = [
+            ...state.value.timeline.slice(0, lowerSide),
+            {
+                type : "video",
+                start : newStart,
+                length : Math.max(clip.start + clip.length, other.start + other.length) - newStart,
+                text : "",
+                media : []
+            },
+            ...state.value.timeline.slice(lowerSide + 2),
+        ]
+        state.set({
+            timeline
+        })
+    }
 
     beginningBtn.onclick = () => {
         state.set({

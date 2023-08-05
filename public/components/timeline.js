@@ -51,6 +51,7 @@
     })
     
     state.watch(["timeline", "project"], async (timeline, project) => { 
+        const scrollLeft = timelineDiv.scrollLeft
         thumbnailsDiv.innerHTML = ""
         if(project) {
             const video = await videoCache(`/download/projects/${project}/video.mp3`)
@@ -79,6 +80,7 @@
                 }
             }, Promise.resolve())
         }
+        timelineDiv.scrollLeft = scrollLeft
     })
 
     state.watch(["timeline"], async (timeline) => {
