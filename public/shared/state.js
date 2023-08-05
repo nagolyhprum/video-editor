@@ -44,6 +44,7 @@ const handleFileUpload = async (files) => {
     const project = prompt("What would you like to name your new project?", files[0].name)
     if(project) {
         const timeline = [{
+            id : crypto.randomUUID(),
             start : 0,
             length : await getVideoDuration(files[0]),
             type : "video",
@@ -68,11 +69,13 @@ const init = async () => {
 
 const getActiveClip = () => {
     let start = 0
-    for(let clip of state.value.timeline) {
+    for(let index in state.value.timeline) {
+        const clip = state.value.timeline[index]
         if(start + clip.length > state.value.time) {
             return {
                 clip,
-                start
+                start,
+                index
             }
         }
         start += clip.length

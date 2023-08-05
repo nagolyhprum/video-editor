@@ -81,8 +81,7 @@
 
                     const audio = new Audio(URL.createObjectURL(audioBlob));
                     audio.onseeked = () => {
-                        const { clip, start } = getActiveClip()
-                        const index = state.value.timeline.indexOf(clip)
+                        const { clip, start, index } = getActiveClip()
                         if(clip.type === "video") {
                             state.set({
                                 timeline : [
@@ -90,6 +89,7 @@
                                     {
                                         ...clip,
                                         media : [...clip.media, {
+                                            id : crypto.randomUUID(),
                                             type : "audio",
                                             src : `/download/${path}`,
                                             start : state.value.time - start - offset,
@@ -107,6 +107,7 @@
                                         ...clip,
                                         length : audio.duration - offset,
                                         media : [{
+                                            id : crypto.randomUUID(),
                                             type : "audio",
                                             src : `/download/${path}`,
                                             start : -offset,

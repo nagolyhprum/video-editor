@@ -7,12 +7,11 @@
     const beginningBtn = document.getElementById('beginning');
 
     restoreBtn.onclick = () => {        
-        const { clip, start } = getActiveClip()
-        const index = state.value.timeline.indexOf(clip)
+        const { clip, start, index } = getActiveClip()
         const side = Math.round((state.value.time - start) / clip.length) * 2 - 1
         const other = state.value.timeline[index + side]
-        const lowerSide = Math.min(index, index + side)
-        const upperSide = Math.max(index, index + side)
+        const lowerSide = state.value.timeline[Math.min(index, index + side)]
+        const upperSide = state.value.timeline[Math.max(index, index + side)]
         const newStart = Math.min(clip.start, other.start)
         const timeline = [
             ...state.value.timeline.slice(0, lowerSide),
@@ -20,12 +19,13 @@
                 type : "video",
                 start : newStart,
                 length : Math.max(clip.start + clip.length, other.start + other.length) - newStart,
-                text : `${state.value.timeline[lowerSide].text} ${state.value.timeline[upperSide].text}`,
+                text : `${lowerSide.text} ${upperSide.text}`,
                 media : [
-                    ...state.value.timeline[lowerSide].media,
-                    ...state.value.timeline[upperSide].media.map(media => ({
+                    ...lowerSide.media,
+                    ...upperSide.media.map(media => ({
                         ...media,
-                        start : media.start + (state.value.timeline[upperSide].start - state.value.timeline[lowerSide].start)
+                        id : crypto.randomUUID(),
+                        start : media.start + (upperSide.start - lowerSide.start)
                     })),
                 ]
             },
@@ -50,18 +50,19 @@
     }
 
     stillBtn.onclick = () => {
-        const { clip, start } = getActiveClip()
-        const index = state.value.timeline.indexOf(clip)
+        const { clip, start, index } = getActiveClip()
         const length = state.value.time - start
         state.set({
             timeline : [
                 ...state.value.timeline.slice(0, index),
                 {
                     ...clip,
+                    id : crypto.randomUUID(),
                     length,
                     media : clip.media.filter(media => media.start < length)
                 },
                 {
+                    id : crypto.randomUUID(),
                     type : "image",
                     start : length + clip.start,
                     length : 5,
@@ -70,10 +71,12 @@
                 },
                 {
                     ...clip,
+                    id : crypto.randomUUID(),
                     start : length + clip.start,
                     length : clip.length - length,
                     media : clip.media.filter(media => media.start >= length).map(media => ({
                         ...media,
+                        id : crypto.randomUUID(),
                         start : media.start - length
                     }))
                 },
@@ -83,8 +86,7 @@
     }
 
     deleteBtn.onclick = () => {
-        const { clip } = getActiveClip()
-        const index = state.value.timeline.indexOf(clip)
+        const { clip, index } = getActiveClip()
         state.set({
             timeline : [
                 ...state.value.timeline.slice(0, index),
@@ -94,23 +96,25 @@
     }
 
     splitBtn.onclick = () => {
-        const { clip, start } = getActiveClip()
-        const index = state.value.timeline.indexOf(clip)
+        const { clip, start, index } = getActiveClip()
         const length = state.value.time - start
         state.set({
             timeline : [
                 ...state.value.timeline.slice(0, index),
                 {
                     ...clip,
+                    id : crypto.randomUUID(),
                     length,
                     media : clip.media.filter(media => media.start < length)
                 },
                 {
                     ...clip,
+                    id : crypto.randomUUID(),
                     start : length + clip.start,
                     length : clip.length - length,
                     media : clip.media.filter(media => media.start >= length).map(media => ({
                         ...media,
+                        id : crypto.randomUUID(),
                         start : media.start - length
                     }))
                 },

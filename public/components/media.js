@@ -59,15 +59,26 @@
     }
 
     state.watch(["timeline"], timeline => {
-        mediaDiv.innerHTML = ""
+        const mediaIds = timeline.map(({ media }) => media.map(({ id }) => id)).flat()
+        const childrenIds = Array.from(mediaDiv.children).map(({ id }) => id)
+        // remove media
+        childrenIds.filter(id => !mediaIds.includes(id)).forEach(id => {
+            mediaDiv.removeChild(document.getElementById(id))
+        })
+
         let startOffset = 0;
         timeline.forEach(clip => {
-            clip.media.forEach(async media => {
+            clip.media.forEach(async (media, index) => {
+                // do not add if already added
+                if(document.getElementById(media.id)) {
+                    return
+                }
                 const clipDiv = document.createElement("div")
                 clipDiv.style.left = `${(startOffset + media.start) * FPS}px`
                 clipDiv.style.width = `${media.length * FPS}px`
                 clipDiv.style.height = `100%`
                 clipDiv.style.position = `absolute`
+                clipDiv.id = media.id
                 clipDiv.oncontextmenu = (e) => {
                     e.preventDefault()
                     e.stopPropagation()
@@ -75,7 +86,13 @@
                         deleteMedia(clip, media)
                     }
                 }
-                mediaDiv.appendChild(clipDiv)
+                // add at proper index
+                const child = mediaDiv.children[index]
+                if(child) {
+                    mediaDiv.insertBefore(clipDiv, child)
+                } else {
+                    mediaDiv.appendChild(clipDiv)
+                }
                 if(media.type === "audio") {
                     const canvas = await drawAudioWaveform(media.src)
                     clipDiv.appendChild(canvas)

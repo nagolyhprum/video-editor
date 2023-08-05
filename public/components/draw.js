@@ -6,6 +6,7 @@
         const { start } = getActiveClip()
         state.set({
             preview : {
+                id : crypto.randomUUID(),
                 type : "circle",
                 clicks : 0,
                 width : .1,
@@ -22,6 +23,7 @@
         const { start } = getActiveClip()
         state.set({
             preview : {
+                id : crypto.randomUUID(),
                 type : "arrow",
                 clicks : 0,
                 points : [{

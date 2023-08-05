@@ -2,8 +2,7 @@
     const input = document.querySelector('#text');
 
     input.oninput = () => {
-        const { clip } = getActiveClip()
-        const index = state.value.timeline.indexOf(clip)
+        const { clip, index } = getActiveClip()
         state.set({
             timeline : [
                 ...state.value.timeline.slice(0, index),

@@ -52,21 +52,40 @@
     
     state.watch(["timeline", "project"], async (timeline, project) => { 
         const scrollLeft = timelineDiv.scrollLeft
-        thumbnailsDiv.innerHTML = ""
+
+        const timelineIds = timeline.map(({ id }) => id)
+        const childrenIds = Array.from(thumbnailsDiv.children).map(({ id }) => id)
+
+        // remove thumbnails
+        childrenIds.filter(id => !timelineIds.includes(id)).forEach(id => {
+            thumbnailsDiv.removeChild(document.getElementById(id))
+        })
+
         if(project) {
             const video = await videoCache(`/download/projects/${project}/video.mp3`)
             await timeline.reduce(async (promise, {
                 start,
                 length,
-                type
-            }) => {
+                id
+            }, index) => {
                 await promise
+                // if i do not have that canvas then exit
+                if(document.getElementById(id)) {
+                    return
+                }
                 const height = 100
                 // add canvas
                 const canvas = document.createElement('canvas');
                 canvas.width = length * FPS
                 canvas.height = height
-                thumbnailsDiv.appendChild(canvas)
+                canvas.id = id
+                // add child at index
+                const child = thumbnailsDiv.children[index]
+                if(child) {
+                    thumbnailsDiv.insertBefore(canvas, child)
+                } else {
+                    thumbnailsDiv.appendChild(canvas)
+                }
                 // load image
                 const width = video.videoWidth * (height / video.videoHeight)
                 // add background
@@ -84,7 +103,7 @@
     })
 
     state.watch(["timeline"], async (timeline) => {
-        if(state.value.project) {
+        if(state.value.project) {            
             await uploadFile({
                 file : new Blob([JSON.stringify(timeline)]),
                 pathname : `/projects/${state.value.project}/timeline.json`

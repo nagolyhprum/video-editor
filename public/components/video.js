@@ -175,8 +175,7 @@
         }
       }
 
-      const { clip } = getActiveClip()
-      const index = state.value.timeline.indexOf(clip)
+      const { clip, index } = getActiveClip()
       state.set({
         preview : null,
         timeline : [
