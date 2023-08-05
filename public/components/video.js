@@ -4,7 +4,65 @@
   const playButton = document.getElementById('playButton');
   const recordBtn = document.getElementById('record');
 
-  const thickness = () => state.value.isRecording ? 20 : 5;
+  const thumbnailBtn = document.getElementById('thumbnail');
+
+  function downloadCanvasAsImage(canvas, fileName) {
+    // Get the data URL representing the canvas image
+    const dataURL = canvas.toDataURL('image/png'); // Change 'image/png' to the desired image type
+  
+    // Create an anchor element to initiate the download
+    const anchor = document.createElement('a');
+    anchor.href = dataURL;
+    anchor.download = fileName; // Set the desired file name
+  
+    // Programmatically click on the anchor to initiate the download
+    anchor.click();
+  }
+
+  thumbnailBtn.onclick = () => {
+    const canvas = document.createElement('canvas');
+    canvas.style.background = "red"
+    canvas.style.zIndex = 100;
+    canvas.style.position = "absolute";
+    canvas.width = 1280;
+    canvas.height = 720;
+    const scale = state.value.scale / 100
+    const width = canvas.width * scale
+    const height = canvas.height * scale
+    const context = canvas.getContext('2d');
+    context.drawImage(
+      videoElement, 
+      canvas.width / 2 - width / 2, 
+      canvas.height / 2 - height / 2, 
+      width, 
+      height
+    )
+
+    const { clip, start } = getActiveClip()
+
+    if(clip.text && clip.type === "image") {
+      const OFFSET = 10
+      context.textBaseline = "top"
+      context.textAlign = "center"
+      context.font = `bold 150px sans-serif`
+      context.strokeStyle = "black"
+      context.lineWidth = 3
+      context.fillStyle = "white"
+      context.fillText(clip.text, canvas.width / 2, OFFSET, canvas.width - OFFSET * 2)
+      context.strokeText(clip.text, canvas.width / 2, OFFSET, canvas.width - OFFSET * 2)
+    }
+    clip.media.forEach(media => {
+      const myStart = start + media.start
+      const myEnd = myStart + media.length
+      if(state.value.time >= myStart && state.value.time <= myEnd) {
+        drawMedia(canvas, context, media, (state.value.time - myStart) / media.length, true)
+      }
+    })
+    
+    downloadCanvasAsImage(canvas, `${state.value.project}-thumbnail.png`)
+  }
+
+  const thickness = (isLarge) => isLarge ? 20 : 5;
 
   let startTime = 0;
   let startOffset = 0;
@@ -41,8 +99,8 @@
     }
   }
 
-  function generateArrowHead(P0, P1, P2, P3, percent) {
-    const arrowSize = thickness() * 4;
+  function generateArrowHead(P0, P1, P2, P3, percent, isLarge) {
+    const arrowSize = thickness(isLarge) * 4;
     const a = spline(P0, P1, P2, P3, percent - .01);
     const b = spline(P0, P1, P2, P3, percent);
 
@@ -88,32 +146,32 @@
     return { x, y };
   }
 
-  const drawMedia = (media, progress) => {
+  const drawMedia = (canvas, context, media, progress, isLarge) => {
     context.lineCap = "round"
     context.lineJoin = "round"
     if(media.type === "circle") {
       context.save()
-      const sx = videoCanvas.width * media.width
-      const sy = videoCanvas.height * media.height
+      const sx = canvas.width * media.width
+      const sy = canvas.height * media.height
       context.scale(
         sx, 
         sy
       )
       context.beginPath()
       context.arc(
-        media.x * videoCanvas.width / sx, 
-        media.y * videoCanvas.height / sy, 
+        media.x * canvas.width / sx, 
+        media.y * canvas.height / sy, 
         1, 
         Math.max(0, (progress - .5) * 2) * (2 * Math.PI + Math.PI / 4), 
         Math.min(1, 2 * progress) * (2 * Math.PI + Math.PI / 4)
       )
       context.restore()
       context.strokeStyle = "black"
-      context.lineWidth = 2 * thickness()
+      context.lineWidth = 2 * thickness(isLarge)
 
       context.stroke()
       context.strokeStyle = "white"
-      context.lineWidth = thickness()
+      context.lineWidth = thickness(isLarge)
 
       context.stroke()
     } else if(media.type === "arrow") {
@@ -122,9 +180,9 @@
       for(let from = Math.max(progress * 200 - 100, 0); from <= Math.min(progress * 200, 100); from += 1) {
         const point = spline(...media.points, from / 100)
         if(moved) {
-          context.lineTo(point.x * videoCanvas.width, point.y * videoCanvas.height)
+          context.lineTo(point.x * canvas.width, point.y * canvas.height)
         } else {
-          context.moveTo(point.x * videoCanvas.width, point.y * videoCanvas.height)
+          context.moveTo(point.x * canvas.width, point.y * canvas.height)
           moved = true
         }
       }
@@ -132,19 +190,19 @@
         x,
         y
       }) => ({
-        x : x * videoCanvas.width,
-        y : y * videoCanvas.height
-      })), Math.min(progress * 200, 100) / 100)
+        x : x * canvas.width,
+        y : y * canvas.height
+      })), Math.min(progress * 200, 100) / 100, isLarge)
       context.lineTo(arrowHead[1].x, arrowHead[1].y)
       context.lineTo(arrowHead[0].x, arrowHead[0].y)
       context.moveTo(arrowHead[1].x, arrowHead[1].y)
       context.lineTo(arrowHead[2].x, arrowHead[2].y)
       context.strokeStyle = "black"
-      context.lineWidth = 2 * thickness()
+      context.lineWidth = 2 * thickness(isLarge)
 
       context.stroke()
       context.strokeStyle = "white"
-      context.lineWidth = thickness()
+      context.lineWidth = thickness(isLarge)
 
       context.stroke()
     }
@@ -252,7 +310,7 @@
     );
     const preview = state.value.preview
     if(preview) {
-      drawMedia(preview, .5)
+      drawMedia(videoCanvas, context, preview, .5, false)
     }
     const result = getActiveClip()
     if(result) {
@@ -261,7 +319,7 @@
         const myStart = start + media.start
         const myEnd = myStart + media.length
         if(state.value.time >= myStart && state.value.time <= myEnd) {
-          drawMedia(media, (state.value.time - myStart) / media.length)
+          drawMedia(videoCanvas, context, media, (state.value.time - myStart) / media.length, state.value.isRecording)
         }
       })
       if(clip.text && clip.type === "image") {

@@ -31,7 +31,7 @@
       }
 
     transcriptBtn.onclick = () => {
-        const transcript = state.value.timeline.map(clip => clip.text.trim()).join("\n").replace(/[\n\r]+/g, "\n\n")
+        const transcript = state.value.timeline.map(clip => clip.text.trim()).join("\n").replace(/[\n\r]+/g, "\n\n").trim()
 
         copyTextToClipboard(transcript)
     }
