@@ -62,11 +62,17 @@
             min-width : 400px;
             min-height : 200px;
         }
+        #thumbnail {
+            height : 180px;
+        }
     </style>
 </head>
 <body>
     <div id="drop-zone">
-        <ul id="projects"></ul>
+        <div class="row">
+            <ul id="projects"></ul>
+            <canvas id="thumbnail"></canvas>
+        </div>
         <div id="project"></div>
         <!-- Canvas element for video playback -->
         <div class="row">
@@ -85,6 +91,8 @@
                     Marker
                     <button id="start">Start of clip</button>
                     <button id="beginning">Start of video</button>
+                    <button id="left">Left</button>
+                    <button id="right">Right</button>
                 </div>
                 <div>
                     Media
@@ -102,7 +110,6 @@
             <div id="marker"></div>
         </div>
         <button id="record">Record</button>
-        <button id="thumbnail">Thumbnail</button>
         <button id="transcript">transcript</button>
     </div>
     <script src="/shared/util.js"></script>

@@ -5,6 +5,20 @@
     const startBtn = document.getElementById('start');
     const restoreBtn = document.getElementById('restore');
     const beginningBtn = document.getElementById('beginning');
+    const leftBtn = document.getElementById('left');
+    const rightBtn = document.getElementById('right');
+
+    leftBtn.onclick = () => {
+        state.set({
+            time : state.value.time - 1 / 16
+        })
+    }
+
+    rightBtn.onclick = () => {
+        state.set({
+            time : state.value.time + 1 / 16
+        })
+    }
 
     restoreBtn.onclick = () => {        
         const { clip, start, index } = getActiveClip()

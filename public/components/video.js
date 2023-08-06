@@ -4,63 +4,7 @@
   const playButton = document.getElementById('playButton');
   const recordBtn = document.getElementById('record');
 
-  const thumbnailBtn = document.getElementById('thumbnail');
-
-  function downloadCanvasAsImage(canvas, fileName) {
-    // Get the data URL representing the canvas image
-    const dataURL = canvas.toDataURL('image/png'); // Change 'image/png' to the desired image type
-  
-    // Create an anchor element to initiate the download
-    const anchor = document.createElement('a');
-    anchor.href = dataURL;
-    anchor.download = fileName; // Set the desired file name
-  
-    // Programmatically click on the anchor to initiate the download
-    anchor.click();
-  }
-
-  thumbnailBtn.onclick = () => {
-    const canvas = document.createElement('canvas');
-    canvas.style.background = "red"
-    canvas.style.zIndex = 100;
-    canvas.style.position = "absolute";
-    canvas.width = 1280;
-    canvas.height = 720;
-    const scale = state.value.scale / 100
-    const width = canvas.width * scale
-    const height = canvas.height * scale
-    const context = canvas.getContext('2d');
-    context.drawImage(
-      videoElement, 
-      canvas.width / 2 - width / 2, 
-      canvas.height / 2 - height / 2, 
-      width, 
-      height
-    )
-
-    const { clip, start } = getActiveClip()
-
-    if(clip.text && clip.type === "image") {
-      const OFFSET = 10
-      context.textBaseline = "top"
-      context.textAlign = "center"
-      context.font = `bold 150px sans-serif`
-      context.strokeStyle = "black"
-      context.lineWidth = 3
-      context.fillStyle = "white"
-      context.fillText(clip.text, canvas.width / 2, OFFSET, canvas.width - OFFSET * 2)
-      context.strokeText(clip.text, canvas.width / 2, OFFSET, canvas.width - OFFSET * 2)
-    }
-    clip.media.forEach(media => {
-      const myStart = start + media.start
-      const myEnd = myStart + media.length
-      if(state.value.time >= myStart && state.value.time <= myEnd) {
-        drawMedia(canvas, context, media, (state.value.time - myStart) / media.length, true)
-      }
-    })
-    
-    downloadCanvasAsImage(canvas, `${state.value.project}-thumbnail.png`)
-  }
+  const thumbnailCanvas = document.getElementById('thumbnail');
 
   const thickness = (isLarge) => isLarge ? 20 : 5;
 
@@ -72,6 +16,50 @@
   
   // Draw video frames on the canvas
   const context = videoCanvas.getContext('2d');
+
+  state.watch(["time", "timeline", "scale", "preview"], (time, timeline, scale, preview) => {
+    if(!state.value.isRecording) {
+      thumbnailCanvas.width = 1280;
+      thumbnailCanvas.height = 720;
+      const scalePercent = scale / 100
+      const width = thumbnailCanvas.width * scalePercent
+      const height = thumbnailCanvas.height * scalePercent
+      const context = thumbnailCanvas.getContext('2d');
+      context.drawImage(
+        videoElement, 
+        thumbnailCanvas.width / 2 - width / 2, 
+        thumbnailCanvas.height / 2 - height / 2, 
+        width, 
+        height
+      )
+  
+      const result = getActiveClip()
+        if(result) {
+          const { clip, start } = result
+          if(clip.text && clip.type === "image") {
+            const OFFSET = 10
+            context.textBaseline = "top"
+            context.textAlign = "center"
+            context.font = `bold 100px sans-serif`
+            context.strokeStyle = "black"
+            context.lineWidth = 20
+            context.fillStyle = "white"
+            context.strokeText(clip.text, thumbnailCanvas.width / 2, OFFSET, thumbnailCanvas.width - OFFSET * 2)
+            context.fillText(clip.text, thumbnailCanvas.width / 2, OFFSET, thumbnailCanvas.width - OFFSET * 2)
+          }
+          if(preview) {
+            drawMedia(thumbnailCanvas, context, preview, .5, true)
+          }
+          clip.media.forEach(media => {
+            const myStart = start + media.start
+            const myEnd = myStart + media.length
+            if(time >= myStart && time <= myEnd) {
+              drawMedia(thumbnailCanvas, context, media, (time - myStart) / media.length, true)
+            }
+          })
+        }
+    }
+  })
 
 
   function rotatePoint(pointA, pointB, theta) {
@@ -328,10 +316,10 @@
         context.textAlign = "center"
         context.font = `bold ${(state.value.isRecording ? 75 : 24) * devicePixelRatio}px sans-serif`
         context.strokeStyle = "black"
-        context.lineWidth = 3
+        context.lineWidth = 10
         context.fillStyle = "white"
-        context.fillText(clip.text, videoCanvas.width / 2, OFFSET, videoCanvas.width - OFFSET * 2)
         context.strokeText(clip.text, videoCanvas.width / 2, OFFSET, videoCanvas.width - OFFSET * 2)
+        context.fillText(clip.text, videoCanvas.width / 2, OFFSET, videoCanvas.width - OFFSET * 2)
       }
     }
     if(state.value.isPlaying) {
