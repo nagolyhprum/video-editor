@@ -68,13 +68,41 @@
 
         let startOffset = 0;
         timeline.forEach(clip => {
-            clip.media.forEach(async (media, index) => {
+            clip.media.forEach(async (media) => {
                 const clipDiv = document.getElementById(media.id) || document.createElement("div")
                 clipDiv.style.left = `${(startOffset + media.start) * FPS}px`
                 clipDiv.style.width = `${media.length * FPS}px`
                 clipDiv.style.height = `100%`
                 clipDiv.style.position = `absolute`
                 clipDiv.id = media.id
+                clipDiv.onclick = (e) => {
+                    e.preventDefault()
+                    e.stopPropagation();
+                    const start = prompt("Enter a value", parseFloat(media.value))
+                    if(!isNaN(start)) {
+                        state.set({
+                            timeline : timeline.map(innerClip => {
+                                if(clip.id === innerClip.id) {
+                                    return {
+                                        ...innerClip,
+                                        media : clip.media.map((innerMedia) => {
+                                            if(media.id === innerMedia.id) {
+                                                return {
+                                                    ...innerMedia,
+                                                    start
+                                                }
+                                            } else {
+                                                return innerMedia
+                                            }
+                                        })
+                                    }
+                                } else {
+                                    return innerClip
+                                }
+                            })
+                        })
+                    }
+                };
                 clipDiv.oncontextmenu = (e) => {
                     e.preventDefault()
                     e.stopPropagation()

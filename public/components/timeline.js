@@ -92,7 +92,7 @@
                     await seekVideo(video, start + i * (width / FPS))
                     context.drawImage(video, i * width, 0, width, height)
                     context.strokeStyle = "purple"
-                    const lineWidth = 1
+                    const lineWidth = 10
                     context.lineWidth = lineWidth
                     context.strokeRect(lineWidth / 2, lineWidth / 2, canvas.width - lineWidth, canvas.height - lineWidth)
                 }
@@ -100,12 +100,18 @@
         }
     })
 
-    state.watch(["timeline"], async (timeline) => {
-        if(state.value.project) {      
-            await uploadFile({
-                file : new Blob([JSON.stringify(timeline)]),
-                pathname : `/projects/${state.value.project}/timeline.json`
-            })
-        }
+    // state.watch(["timeline"], async (timeline) => {
+    //     if(state.value.project) {      
+    //         await uploadFile({
+    //             file : new Blob([JSON.stringify(timeline)]),
+    //             pathname : `/projects/${state.value.project}/timeline.json`
+    //         })
+    //     }
+    // })
+}
+window.save = () => {
+    uploadFile({
+        file : new Blob([JSON.stringify(state.value.timeline)]),
+        pathname : `/projects/${state.value.project}/timeline.json`
     })
 }

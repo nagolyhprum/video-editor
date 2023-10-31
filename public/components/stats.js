@@ -15,7 +15,8 @@
                 time: toTime(time),
                 length : toTime(length),
                 start : result.start,
-                media : result.clip.media.length
+                media : result.clip.media.length,
+                stills : timeline.filter(({ type, media, text }) => type === "image" || media.length || text).length,
             }
             statsDiv.innerHTML = JSON.stringify(json, null, 2)
         }

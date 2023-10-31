@@ -76,7 +76,8 @@
         <div id="project"></div>
         <!-- Canvas element for video playback -->
         <div class="row">
-            <canvas id="videoCanvas" width="640" height="360"></canvas>
+            <!--16 x 9-->
+            <canvas id="videoCanvas" width="960" height="540"></canvas>
             <div id="controls">
                 <div id="stats"></div>
                 <button id="playButton">Play / Pause</button>
@@ -86,6 +87,7 @@
                     <button id="split">Split</button>
                     <button id="delete">Delete</button>
                     <button id="restore">Restore</button>
+                    <button id="media-clip">Media Clip</button>
                 </div>
                 <div>
                     Marker
@@ -126,6 +128,7 @@
   <script src="/components/audio.js"></script>
   <script src="/components/text.js"></script>
   <script src="/components/stats.js"></script>
+  <script src="/components/media-clip.js"></script>
   <script>    
         const test = async () => {
             const files = await listFiles({})

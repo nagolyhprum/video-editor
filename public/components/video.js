@@ -1,5 +1,5 @@
 {
-
+  let isMobile = true;
   const videoCanvas = document.getElementById('videoCanvas');
   const playButton = document.getElementById('playButton');
   const recordBtn = document.getElementById('record');
@@ -25,6 +25,8 @@
       const width = thumbnailCanvas.width * scalePercent
       const height = thumbnailCanvas.height * scalePercent
       const context = thumbnailCanvas.getContext('2d');
+      context.lineCap = "round"
+      context.lineJoin = "round"
       context.drawImage(
         videoElement, 
         thumbnailCanvas.width / 2 - width / 2, 
@@ -32,7 +34,7 @@
         width, 
         height
       )
-  
+
       const result = getActiveClip()
         if(result) {
           const { clip, start } = result
@@ -40,10 +42,10 @@
             const OFFSET = 10
             context.textBaseline = "top"
             context.textAlign = "center"
-            context.font = `bold 100px sans-serif`
             context.strokeStyle = "black"
             context.lineWidth = 20
             context.fillStyle = "white"
+            context.font = `bold 100px sans-serif`
             context.strokeText(clip.text, thumbnailCanvas.width / 2, OFFSET, thumbnailCanvas.width - OFFSET * 2)
             context.fillText(clip.text, thumbnailCanvas.width / 2, OFFSET, thumbnailCanvas.width - OFFSET * 2)
           }
@@ -135,8 +137,6 @@
   }
 
   const drawMedia = (canvas, context, media, progress, isLarge) => {
-    context.lineCap = "round"
-    context.lineJoin = "round"
     if(media.type === "circle") {
       context.save()
       const sx = canvas.width * media.width
@@ -281,14 +281,53 @@
       }
     }
   }
+
+  const average = media => {
+    if(media.type === "circle") {
+      return (.5 - media.x) * videoCanvas.width
+    }
+    if(media.type === "arrow") {
+      return media.points.reduce((total, { x }) => total + (.5 - x), 0) / media.points.length * videoCanvas.width
+    }
+    return 0
+  }
+
+  const getXTargetsBasedOnMediaAndTime = () => {
+    const mobile_height = videoCanvas.height;
+    const mobile_width = mobile_height * 9 / 16;
+    const min = videoCanvas.width / 2 - mobile_width / 2;
+    const xTargets = [];
+    let offset = 0;
+    state.value.timeline.forEach((clip) => {
+      for(let i = Math.ceil(offset); i < offset + clip.length; i++) {
+        const medias = clip.media.filter(media => ["arrow", "circle"].includes(media.type) && media.start + offset <= i && media.start + offset + media.length >= i);
+        const total = medias.reduce((total, media) => total + average(media), 0)
+        xTargets.push(Math.min(Math.max(-min, total / (medias.length || 1)), min));
+      }
+      offset += clip.length;
+    }) 
+    return xTargets;
+  }
   
   function drawVideoFrame() {
     requestAnimationFrame(drawVideoFrame);
+
+    context.clearRect(0, 0, videoCanvas.width, videoCanvas.height);
+    context.lineCap = "round"
+    context.lineJoin = "round"
 
     const scale = state.value.scale / 100
     const width = videoCanvas.width * scale
     const height = videoCanvas.height * scale
 
+    context.save();
+    if(isMobile) {
+      const targets = getXTargetsBasedOnMediaAndTime();
+      const from = Math.floor(state.value.time);
+      const to = from + 1;
+      const delta = state.value.time - from;
+      context.translate((targets[to] - targets[from]) * delta + targets[from], 0);
+    }
     context.drawImage(
       videoElement, 
       videoCanvas.width / 2 - width / 2, 
@@ -300,6 +339,7 @@
     if(preview) {
       drawMedia(videoCanvas, context, preview, .5, false)
     }
+
     const result = getActiveClip()
     if(result) {
       const { clip, start } = result
@@ -310,6 +350,7 @@
           drawMedia(videoCanvas, context, media, (state.value.time - myStart) / media.length, state.value.isRecording)
         }
       })
+      context.restore();
       if(clip.text && clip.type === "image") {
         const OFFSET = (state.value.isRecording ? 50 : 10) * devicePixelRatio
         context.textBaseline = "top"
@@ -318,8 +359,26 @@
         context.strokeStyle = "black"
         context.lineWidth = 10
         context.fillStyle = "white"
-        context.strokeText(clip.text, videoCanvas.width / 2, OFFSET, videoCanvas.width - OFFSET * 2)
-        context.fillText(clip.text, videoCanvas.width / 2, OFFSET, videoCanvas.width - OFFSET * 2)
+
+        if(isMobile) {
+          context.font = `bold 20px sans-serif`
+          context.strokeText(clip.text, videoCanvas.width / 2, OFFSET + 40, videoCanvas.width - OFFSET * 2)
+          context.fillText(clip.text, videoCanvas.width / 2, OFFSET + 40, videoCanvas.width - OFFSET * 2)
+        } else {
+          context.font = `bold 50px sans-serif`
+          context.strokeText(clip.text, videoCanvas.width / 2, OFFSET, videoCanvas.width - OFFSET * 2)
+          context.fillText(clip.text, videoCanvas.width / 2, OFFSET, videoCanvas.width - OFFSET * 2)
+        }
+      } else {
+        context.restore();
+      }
+      if(isMobile) {
+        // 9 x 16
+        const mobile_height = videoCanvas.height;
+        const mobile_width = mobile_height * 9 / 16;
+        context.strokeWidth = 1;
+        context.strokeStyle = "red";
+        context.strokeRect(videoCanvas.width / 2 - mobile_width / 2, 0, mobile_width, mobile_height)
       }
     }
     if(state.value.isPlaying) {
@@ -367,6 +426,13 @@
     }
   })
 
+  const conditionalTimeUpdate = (video, time) => {
+    const offset = Math.abs(video.currentTime - time)
+    if(offset > 1 / 16) {
+      video.currentTime = time
+    }
+  }
+
   const timeouts = []
 
   state.watch(["isPlaying"], isPlaying => {
@@ -377,7 +443,7 @@
           const offset = Math.max(0, state.value.time - startOffset)
           timeouts.push(setTimeout(() => {            
             if(clip.type === "video") {
-              videoElement.currentTime = clip.start + offset
+              conditionalTimeUpdate(videoElement, clip.start + offset)
               videoElement.play()
             } else if(clip.type === "image") {
               videoElement.currentTime = clip.start
