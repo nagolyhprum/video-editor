@@ -1,5 +1,4 @@
 {
-  let isMobile = true;
   const videoCanvas = document.getElementById('videoCanvas');
   const playButton = document.getElementById('playButton');
   const recordBtn = document.getElementById('record');
@@ -7,6 +6,13 @@
   const thumbnailCanvas = document.getElementById('thumbnail');
 
   const thickness = (isLarge) => isLarge ? 20 : 5;
+
+
+  document.getElementById("mobile").onclick = () => {
+    state.set({
+      isMobile : !state.value.isMobile
+    })
+  }
 
   let startTime = 0;
   let startOffset = 0;
@@ -193,6 +199,11 @@
       context.lineWidth = thickness(isLarge)
 
       context.stroke()
+    } else if(media.type === "focus") {
+      if(!state.value.isPlaying) {
+        context.fillStyle = "yellow";
+        context.fillRect(media.x * canvas.width - 5, media.y * canvas.height - 5, 10, 10);
+      }
     }
   }
 
@@ -278,6 +289,14 @@
             ]
           }
         })
+      } else if(preview.type === "focus") {
+        state.set({
+          preview : {
+            ...preview,
+            x,
+            y
+          }
+        })
       }
     }
   }
@@ -288,6 +307,9 @@
     }
     if(media.type === "arrow") {
       return media.points.reduce((total, { x }) => total + (.5 - x), 0) / media.points.length * videoCanvas.width
+    }
+    if(media.type === "focus") {
+      return (.5 - media.x) * videoCanvas.width
     }
     return 0
   }
@@ -300,7 +322,7 @@
     let offset = 0;
     state.value.timeline.forEach((clip) => {
       for(let i = Math.ceil(offset); i < offset + clip.length; i++) {
-        const medias = clip.media.filter(media => ["arrow", "circle"].includes(media.type) && media.start + offset <= i && media.start + offset + media.length >= i);
+        const medias = clip.media.filter(media => ["arrow", "circle", "focus"].includes(media.type) && media.start + offset <= i && media.start + offset + media.length >= i);
         const total = medias.reduce((total, media) => total + average(media), 0)
         xTargets.push(Math.min(Math.max(-min, total / (medias.length || 1)), min));
       }
@@ -311,8 +333,9 @@
   
   function drawVideoFrame() {
     requestAnimationFrame(drawVideoFrame);
+    const isMobile = state.value.isMobile;
 
-    context.clearRect(0, 0, videoCanvas.width, videoCanvas.height);
+    videoCanvas.width = videoCanvas.width;
     context.lineCap = "round"
     context.lineJoin = "round"
 
@@ -320,6 +343,14 @@
     const width = videoCanvas.width * scale
     const height = videoCanvas.height * scale
 
+    if(isMobile) {
+      // 9 x 16
+      const mobile_height = videoCanvas.height;
+      const mobile_width = mobile_height * 9 / 16;
+      context.beginPath();
+      context.rect(videoCanvas.width / 2 - mobile_width / 2, 0, mobile_width, mobile_height)
+      context.clip();
+    }
     context.save();
     if(isMobile) {
       const targets = getXTargetsBasedOnMediaAndTime();
@@ -361,24 +392,15 @@
         context.fillStyle = "white"
 
         if(isMobile) {
-          context.font = `bold 20px sans-serif`
+          context.font = `bold ${state.value.isRecording ? 50 : 20}px sans-serif`
           context.strokeText(clip.text, videoCanvas.width / 2, OFFSET + 40, videoCanvas.width - OFFSET * 2)
           context.fillText(clip.text, videoCanvas.width / 2, OFFSET + 40, videoCanvas.width - OFFSET * 2)
         } else {
-          context.font = `bold 50px sans-serif`
           context.strokeText(clip.text, videoCanvas.width / 2, OFFSET, videoCanvas.width - OFFSET * 2)
           context.fillText(clip.text, videoCanvas.width / 2, OFFSET, videoCanvas.width - OFFSET * 2)
         }
       } else {
         context.restore();
-      }
-      if(isMobile) {
-        // 9 x 16
-        const mobile_height = videoCanvas.height;
-        const mobile_width = mobile_height * 9 / 16;
-        context.strokeWidth = 1;
-        context.strokeStyle = "red";
-        context.strokeRect(videoCanvas.width / 2 - mobile_width / 2, 0, mobile_width, mobile_height)
       }
     }
     if(state.value.isPlaying) {

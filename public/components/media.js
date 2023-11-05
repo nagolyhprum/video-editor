@@ -123,6 +123,9 @@
                     } else if(media.type === "arrow") {
                         clipDiv.style.background = "blue"
                         clipDiv.style.zIndex = 10;
+                    } else if(media.type === "focus") {
+                        clipDiv.style.background = "yellow"
+                        clipDiv.style.zIndex = 10;
                     }
                 }
             })

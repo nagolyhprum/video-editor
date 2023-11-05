@@ -13,8 +13,10 @@
             const length = timeline.reduce((length, clip) => length + clip.length, 0)
             const json = {
                 time: toTime(time),
+                clipStart: toTime(result.clip.start),
+                clipLength: toTime(result.clip.length),
+                start : toTime(result.start),
                 length : toTime(length),
-                start : result.start,
                 media : result.clip.media.length,
                 stills : timeline.filter(({ type, media, text }) => type === "image" || media.length || text).length,
             }

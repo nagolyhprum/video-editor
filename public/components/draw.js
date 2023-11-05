@@ -19,6 +19,21 @@
         })
     }
 
+    document.getElementById("focus").onclick = () => {
+        const { start } = getActiveClip()
+        state.set({
+            preview : {
+                id : crypto.randomUUID(),
+                type : "focus",
+                clicks : 0,
+                x : .5,
+                y : .5,
+                start : state.value.time - start,
+                length : Number(prompt("Enter a value", 1))
+            }
+        })
+    }
+
     arrowBtn.onclick = () => {
         const { start } = getActiveClip()
         state.set({
