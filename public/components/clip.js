@@ -27,27 +27,43 @@
         const upperSide = state.value.timeline[Math.max(index, index + side)]
         const newStart = lowerSide.start
         const outIndex = Math.min(index, index + side)
-        const timeline = [
-            ...state.value.timeline.slice(0, outIndex),
-            {
-                type : "video",
-                start : newStart,
-                length : upperSide.start + upperSide.length - newStart,
-                text : `${lowerSide.text} ${upperSide.text}`,
-                media : [
-                    ...lowerSide.media,
-                    ...upperSide.media.map(media => ({
-                        ...media,
-                        id : crypto.randomUUID(),
-                        start : media.start + (upperSide.start - lowerSide.start)
-                    })),
-                ]
-            },
-            ...state.value.timeline.slice(outIndex + 2),
-        ]
-        state.set({
-            timeline
-        })
+        if(!upperSide) {
+            const timeline = [
+                ...state.value.timeline.slice(0, outIndex),
+                {
+                    type : "video",
+                    start : newStart,
+                    length : state.value.duration - newStart,
+                    text : `${lowerSide.text}`,
+                    media : lowerSide.media
+                },
+            ]
+            state.set({
+                timeline
+            })
+        } else {
+            const timeline = [
+                ...state.value.timeline.slice(0, outIndex),
+                {
+                    type : "video",
+                    start : newStart,
+                    length : upperSide.start + upperSide.length - newStart,
+                    text : `${lowerSide.text} ${upperSide.text}`,
+                    media : [
+                        ...lowerSide.media,
+                        ...upperSide.media.map(media => ({
+                            ...media,
+                            id : crypto.randomUUID(),
+                            start : media.start + (upperSide.start - lowerSide.start)
+                        })),
+                    ]
+                },
+                ...state.value.timeline.slice(outIndex + 2),
+            ]
+            state.set({
+                timeline
+            })
+        }
     }
 
     beginningBtn.onclick = () => {

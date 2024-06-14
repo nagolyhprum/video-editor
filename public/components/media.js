@@ -72,13 +72,12 @@
                 const clipDiv = document.getElementById(media.id) || document.createElement("div")
                 clipDiv.style.left = `${(startOffset + media.start) * FPS}px`
                 clipDiv.style.width = `${media.length * FPS}px`
-                clipDiv.style.height = `100%`
                 clipDiv.style.position = `absolute`
                 clipDiv.id = media.id
                 clipDiv.onclick = (e) => {
                     e.preventDefault()
                     e.stopPropagation();
-                    const start = prompt("Enter a value", parseFloat(media.value))
+                    const start = parseFloat(prompt("Enter a value", media.value))
                     if(!isNaN(start)) {
                         state.set({
                             timeline : timeline.map(innerClip => {
@@ -117,15 +116,19 @@
                         clipDiv.appendChild(canvas)
                         canvas.style.width = canvas.style.height = "100%"
                         canvas.style.background = "red"
+                        clipDiv.style.height = `100%`
                     } else if(media.type === "circle") {
                         clipDiv.style.background = "green"
                         clipDiv.style.zIndex = 10;
+                        clipDiv.style.height = `100%`
                     } else if(media.type === "arrow") {
                         clipDiv.style.background = "blue"
                         clipDiv.style.zIndex = 10;
+                        clipDiv.style.height = `100%`
                     } else if(media.type === "focus") {
                         clipDiv.style.background = "yellow"
                         clipDiv.style.zIndex = 10;
+                        clipDiv.style.height = "50%";
                     }
                 }
             })

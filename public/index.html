@@ -22,8 +22,7 @@
             pointer-events: none;
         }
         #thumbnails {
-            display : flex;
-            flex-direction : row;
+            white-space: nowrap;
         }
         #media div {
             opacity: 0.5;
@@ -72,10 +71,6 @@
 </head>
 <body>
     <div id="drop-zone">
-        <div class="row">
-            <ul id="projects"></ul>
-            <canvas id="thumbnail"></canvas>
-        </div>
         <div id="project"></div>
         <!-- Canvas element for video playback -->
         <div class="row">
@@ -118,6 +113,10 @@
         </div>
         <button id="record">Record</button>
         <button id="transcript">transcript</button>
+        <div class="row">
+            <ul id="projects"></ul>
+            <canvas id="thumbnail"></canvas>
+        </div>
     </div>
     <script src="/shared/util.js"></script>
     <script src="/shared/api.js"></script>

@@ -1,13 +1,15 @@
 const mediaClip = document.querySelector("#media-clip")
 mediaClip.onclick = () => {
     // get all of the media time spans
-    const OFFSET = 3;
+    const OFFSET = parseFloat(prompt("Offset", "3"));
     const media = state.value.timeline.flatMap(clip => clip.type === "image" ? [{
         from : clip.start - OFFSET,
         to : clip.start + OFFSET,
+        clipId: clip.id
     }] : clip.media.map(media => ({
         from : clip.start + media.start - OFFSET,
         to : clip.start + media.start + media.length + OFFSET,
+        clipId: clip.id
     })));
     // merge any overlapping time spans
     for (let i = 0; i < media.length; i++) {

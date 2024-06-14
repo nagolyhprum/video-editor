@@ -1,4 +1,6 @@
 {
+    const CANVAS_ENABLED = false;
+
     const timelineDiv = document.getElementById('timeline');
     const thumbnailsDiv = document.getElementById('thumbnails');
     const markerDiv = document.getElementById('marker');
@@ -61,21 +63,28 @@
 
         if(project) {
             const video = await videoCache(`/download/projects/${project}/video.mp3`)
+            state.set({
+                duration : video.duration
+            })
             await timeline.reduce(async (promise, {
                 start,
                 length,
-                id
+                id,
+                type
             }, index) => {
                 await promise
                 // if i do not have that canvas then exit
                 if(document.getElementById(id)) {
                     return
                 }
-                const height = 100
+                const height = 50
                 // add canvas
-                const canvas = document.createElement('canvas');
+                const canvas = CANVAS_ENABLED ? document.createElement('canvas') : document.createElement("div");
+                canvas.style.display = "inline-block"
                 canvas.width = Math.round(length * FPS)
                 canvas.height = height
+                canvas.style.width = `${canvas.width}px`
+                canvas.style.height = `${canvas.height}px`
                 canvas.id = id
                 // add child at index
                 const child = thumbnailsDiv.children[index]
@@ -85,16 +94,25 @@
                     thumbnailsDiv.appendChild(canvas)
                 }
                 // load image
-                const width = video.videoWidth * (height / video.videoHeight)
-                // add background
-                const context = canvas.getContext('2d');
-                for(let i = 0; i < Math.ceil(canvas.width / width); i++) {
-                    await seekVideo(video, start + i * (width / FPS))
-                    context.drawImage(video, i * width, 0, width, height)
-                    context.strokeStyle = "purple"
-                    const lineWidth = 10
-                    context.lineWidth = lineWidth
-                    context.strokeRect(lineWidth / 2, lineWidth / 2, canvas.width - lineWidth, canvas.height - lineWidth)
+                if(CANVAS_ENABLED)  {
+                    const width = video.videoWidth * (height / video.videoHeight)
+                    // add background
+                    const context = canvas.getContext('2d');
+                    for(let i = 0; i < Math.ceil(canvas.width / width); i++) {
+                        await seekVideo(video, start + i * (width / FPS))
+                        context.drawImage(video, i * width, 0, width, height)
+                        if(type === "video") {
+                            context.strokeStyle = "purple"
+                        } else if(type === "image") {
+                            context.strokeStyle = "orange"
+                        }
+                        const lineWidth = 10
+                        context.lineWidth = lineWidth
+                        context.strokeRect(lineWidth / 2, lineWidth / 2, canvas.width - lineWidth, canvas.height - lineWidth)
+                    }
+                } else {
+                    canvas.style.boxSizing = "border-box"
+                    canvas.style.border = `${10}px solid ${type === "video" ? "purple" : "orange"}`
                 }
             }, Promise.resolve())
         }
@@ -113,5 +131,18 @@ window.save = () => {
     uploadFile({
         file : new Blob([JSON.stringify(state.value.timeline)]),
         pathname : `/projects/${state.value.project}/timeline.json`
+    })
+}
+
+const isNumber = (n) => {
+    return !isNaN(parseFloat(n))
+}
+
+window.clean = () => {
+    state.set({
+        timeline : state.value.timeline.filter(clip => isNumber(clip.start) && isNumber(clip.length)).map(clip => ({
+            ...clip,
+            media : clip.media.filter(media => isNumber(media.start) && isNumber(media.length))
+        }))
     })
 }

@@ -52,8 +52,9 @@
             context.lineWidth = 20
             context.fillStyle = "white"
             context.font = `bold 100px sans-serif`
-            context.strokeText(clip.text, thumbnailCanvas.width / 2, OFFSET, thumbnailCanvas.width - OFFSET * 2)
-            context.fillText(clip.text, thumbnailCanvas.width / 2, OFFSET, thumbnailCanvas.width - OFFSET * 2)
+            const text = clip.text.split("\n")[0]
+            context.strokeText(text, thumbnailCanvas.width / 2, OFFSET, thumbnailCanvas.width - OFFSET * 2)
+            context.fillText(text, thumbnailCanvas.width / 2, OFFSET, thumbnailCanvas.width - OFFSET * 2)
           }
           if(preview) {
             drawMedia(thumbnailCanvas, context, preview, .5, true)
@@ -343,10 +344,10 @@
     const width = videoCanvas.width * scale
     const height = videoCanvas.height * scale
 
+    const mobile_height = videoCanvas.height;
+    const mobile_width = mobile_height * 9 / 16;
     if(isMobile) {
       // 9 x 16
-      const mobile_height = videoCanvas.height;
-      const mobile_width = mobile_height * 9 / 16;
       context.beginPath();
       context.rect(videoCanvas.width / 2 - mobile_width / 2, 0, mobile_width, mobile_height)
       context.clip();
@@ -391,13 +392,14 @@
         context.lineWidth = 10
         context.fillStyle = "white"
 
+        const text = clip.text.split("\n")[0]
         if(isMobile) {
           context.font = `bold ${state.value.isRecording ? 50 : 20}px sans-serif`
-          context.strokeText(clip.text, videoCanvas.width / 2, OFFSET + 40, videoCanvas.width - OFFSET * 2)
-          context.fillText(clip.text, videoCanvas.width / 2, OFFSET + 40, videoCanvas.width - OFFSET * 2)
+          context.strokeText(text, videoCanvas.width / 2, OFFSET + 40, videoCanvas.width - OFFSET * 2, mobile_width)
+          context.fillText(text, videoCanvas.width / 2, OFFSET + 40, videoCanvas.width - OFFSET * 2, mobile_width)
         } else {
-          context.strokeText(clip.text, videoCanvas.width / 2, OFFSET, videoCanvas.width - OFFSET * 2)
-          context.fillText(clip.text, videoCanvas.width / 2, OFFSET, videoCanvas.width - OFFSET * 2)
+          context.strokeText(text, videoCanvas.width / 2, OFFSET, videoCanvas.width - OFFSET * 2)
+          context.fillText(text, videoCanvas.width / 2, OFFSET, videoCanvas.width - OFFSET * 2)
         }
       } else {
         context.restore();
