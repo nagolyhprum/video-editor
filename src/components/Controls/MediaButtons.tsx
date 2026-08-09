@@ -1,4 +1,9 @@
-import { createArrowPreview, createCirclePreview, createFocusPreview } from "../../state/actions";
+import {
+  createArrowPreview,
+  createCirclePreview,
+  createFocusPreview,
+  createScreenshotPreview,
+} from "../../state/actions";
 import { toggleAudioRecording } from "../../lib/audioRecording";
 
 const buttonClass = "rounded bg-neutral-200 px-3 py-1.5 text-sm hover:bg-neutral-300";
@@ -19,6 +24,13 @@ export default function MediaButtons() {
         </button>
         <button id="focus" onClick={createFocusPreview} className={`${buttonClass} bg-yellow-400 text-black hover:bg-yellow-500`}>
           Focus
+        </button>
+        <button
+          id="screenshot"
+          onClick={createScreenshotPreview}
+          className={`${buttonClass} bg-purple-600 text-white hover:bg-purple-700`}
+        >
+          Screenshot
         </button>
       </div>
     </div>

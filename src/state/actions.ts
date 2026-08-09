@@ -1,7 +1,7 @@
 import { getState, setState } from "./store";
 import { deleteFile, downloadFile, listFiles, uploadFile } from "../lib/api";
 import { getBlobText, getVideoDuration } from "../lib/media";
-import type { ActiveClip, ArrowMedia, CircleMedia, Clip, FocusMedia } from "./types";
+import type { ActiveClip, ArrowMedia, CircleMedia, Clip, FocusMedia, ScreenshotMedia } from "./types";
 
 export function getActiveClip(): ActiveClip | null {
   const state = getState();
@@ -269,6 +269,49 @@ export function createFocusPreview(): void {
     length,
   };
   setState({ preview });
+}
+
+export function createScreenshotPreview(): void {
+  const result = getActiveClip();
+  if (!result) return;
+  const { start } = result;
+  const state = getState();
+  const preview: ScreenshotMedia = {
+    id: crypto.randomUUID(),
+    type: "screenshot",
+    clicks: 0,
+    x: 0.25,
+    y: 0.25,
+    width: 0.5,
+    height: 0.5,
+    label: "",
+    start: state.time - start,
+    length: 2,
+  };
+  setState({ preview });
+}
+
+export interface TimedScreenshot {
+  media: ScreenshotMedia;
+  absoluteTime: number;
+}
+
+/** Every screenshot media item across the whole timeline, with its absolute
+ * (timeline-relative, not clip-relative) capture time -- used to drive the
+ * left-margin box stack, which isn't scoped to the active clip. */
+export function getAllScreenshots(): TimedScreenshot[] {
+  const state = getState();
+  const results: TimedScreenshot[] = [];
+  let clipStart = 0;
+  for (const clip of state.timeline) {
+    for (const media of clip.media) {
+      if (media.type === "screenshot") {
+        results.push({ media, absoluteTime: clipStart + media.start });
+      }
+    }
+    clipStart += clip.length;
+  }
+  return results.sort((a, b) => a.absoluteTime - b.absoluteTime);
 }
 
 export function deleteMedia(clip: Clip, mediaId: string): void {

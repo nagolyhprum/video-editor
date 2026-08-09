@@ -42,8 +42,25 @@ export interface AudioMedia {
   length: number;
 }
 
-export type Media = CircleMedia | ArrowMedia | FocusMedia | AudioMedia;
-export type MediaPreview = CircleMedia | ArrowMedia | FocusMedia;
+export interface ScreenshotMedia {
+  id: string;
+  type: "screenshot";
+  clicks: number;
+  // (x, y) is the first-clicked corner (anchor), fixed once clicks >= 1.
+  // width/height are the *signed* delta to the second corner -- can be
+  // negative while the user is still dragging, normalized (via
+  // normalizeRegion) whenever the region is actually needed.
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  label: string;
+  start: number;
+  length: number;
+}
+
+export type Media = CircleMedia | ArrowMedia | FocusMedia | AudioMedia | ScreenshotMedia;
+export type MediaPreview = CircleMedia | ArrowMedia | FocusMedia | ScreenshotMedia;
 
 export type ClipType = "video" | "image";
 

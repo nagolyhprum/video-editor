@@ -3,6 +3,23 @@ import { DECOR_BANNER_BOTTOM_NUDGE, DECOR_BOX_SIZE, DECOR_PADDING, DECOR_STACK_S
 
 export const thickness = (isLarge: boolean): number => (isLarge ? 20 : 5);
 
+// Normalizes a corner + signed-delta rectangle (as produced while dragging a
+// screenshot region, where the second corner can end up above/left of the
+// first) into a proper top-left + positive width/height box.
+export function normalizeRegion(
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): { x: number; y: number; width: number; height: number } {
+  return {
+    x: width < 0 ? x + width : x,
+    y: height < 0 ? y + height : y,
+    width: Math.abs(width),
+    height: Math.abs(height),
+  };
+}
+
 // How many box+banner units fit stacked vertically in a margin of the given
 // canvas height -- shared by the generator (which needs a time per slot)
 // and the render loop (which needs a position per slot).
@@ -289,5 +306,17 @@ export function drawMedia(
         10,
       );
     }
+  } else if (media.type === "screenshot") {
+    const region = normalizeRegion(media.x, media.y, media.width, media.height);
+    const rx = region.x * canvas.width;
+    const ry = region.y * canvas.height;
+    const rw = region.width * canvas.width;
+    const rh = region.height * canvas.height;
+    context.strokeStyle = "black";
+    context.lineWidth = 2 * thickness(isLarge);
+    context.strokeRect(rx, ry, rw, rh);
+    context.strokeStyle = "white";
+    context.lineWidth = thickness(isLarge);
+    context.strokeRect(rx, ry, rw, rh);
   }
 }

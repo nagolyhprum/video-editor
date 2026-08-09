@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { getState, setState, useEditorState } from "../state/store";
-import { getActiveClip } from "../state/actions";
+import { getActiveClip, getAllScreenshots } from "../state/actions";
 import {
   clipToRoundedRect,
   computeDecorStackCount,
@@ -8,6 +8,7 @@ import {
   drawBanner,
   drawMedia,
   drawTiledBackground,
+  normalizeRegion,
 } from "../lib/canvas";
 import { getSharedVideoElement } from "../lib/videoElement";
 import { getCanvasBackgroundImage } from "../lib/backgroundImage";
@@ -25,17 +26,16 @@ import {
   DECOR_BANNER_EXTRA_WIDTH,
   DECOR_BANNER_HEIGHT,
   DECOR_BANNER_OPACITY,
-  DECOR_BANNER_TEXT_SIZE_AT_REFERENCE,
   DECOR_BOX_SIZE,
   DECOR_CLIP_PADDING,
   DECOR_CLIP_SIZE,
   DECOR_CLIP_TEXT_PADDING,
-  DECOR_CLIP_TEXT_SIZE_AT_REFERENCE,
   DECOR_PADDING,
   DECOR_SOURCE_BORDER,
   DECOR_SOURCE_SIZE,
   DECOR_STACK_SPACING,
   DECOR_TEXT_REFERENCE_WIDTH,
+  TEXT_SIZE_AT_1080P,
   VIDEO_CORNER_RADIUS,
   VIDEO_MARGIN_LEFT,
   VIDEO_MARGIN_RIGHT,
@@ -70,34 +70,40 @@ function conditionalTimeUpdate(video: HTMLVideoElement, time: number): void {
 export default function VideoCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number>(0);
-  const boxClipThumbnailsRef = useRef<HTMLCanvasElement[]>([]);
+  const screenshotThumbnailsRef = useRef<{ label: string; canvas: HTMLCanvasElement }[]>([]);
   const project = useEditorState((s) => s.project);
   const time = useEditorState((s) => s.time);
   const isPlaying = useEditorState((s) => s.isPlaying);
-  const duration = useEditorState((s) => s.duration);
+  const timeline = useEditorState((s) => s.timeline);
 
-  // Each stacked box gets a snapshot of the video at its own evenly-spaced
-  // time, cropped to a centered square -- generated once per project/duration
-  // (not every frame) and cached as plain canvases for the render loop to draw.
+  // Each stacked box shows one actual screenshot media item, cropped to the
+  // region the user drew -- regenerated whenever the timeline's screenshots
+  // change. The render loop picks which page of these to display each frame,
+  // so this only needs to (re)run once per edit, not every frame.
   useEffect(() => {
-    if (!project || !duration) {
-      boxClipThumbnailsRef.current = [];
+    const screenshots = getAllScreenshots();
+    if (!project || !screenshots.length) {
+      screenshotThumbnailsRef.current = [];
       return;
     }
     let cancelled = false;
-    const stackCount = computeDecorStackCount(canvasRef.current?.height ?? 540);
-    const specs = Array.from({ length: stackCount }, (_, i) => ({
-      time: (duration * (i + 1)) / (stackCount + 1),
+    const specs = screenshots.map(({ media, absoluteTime }) => ({
+      time: absoluteTime,
+      region: { x: media.x, y: media.y, width: media.width, height: media.height },
     }));
     generateBoxClipThumbnails(`/api/download/projects/${project}/video.mp3`, specs, DECOR_CLIP_SIZE).then(
       (thumbnails) => {
-        if (!cancelled) boxClipThumbnailsRef.current = thumbnails;
+        if (cancelled) return;
+        screenshotThumbnailsRef.current = screenshots.map(({ media }, i) => ({
+          label: media.label,
+          canvas: thumbnails[i],
+        }));
       }
     );
     return () => {
       cancelled = true;
     };
-  }, [project, duration]);
+  }, [project, timeline]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -189,20 +195,26 @@ export default function VideoCanvas() {
       const videoHeight = fullVideoHeight - topCrop;
       const videoBottom = VIDEO_MARGIN_TOP + videoHeight;
 
+      const screenshots = screenshotThumbnailsRef.current;
       if (
-        boxPanelImage ||
-        (bannerLeftImage && bannerMiddleImage && bannerRightImage)
+        screenshots.length > 0 &&
+        (boxPanelImage ||
+          (bannerLeftImage && bannerMiddleImage && bannerRightImage))
       ) {
         context.imageSmoothingEnabled = false;
 
         // stack as many box+banner units as fit vertically in the margin,
         // each separated by DECOR_STACK_SPACING -- only the top needs its
         // own reserved padding, the bottom-most unit can run right up to
-        // the canvas edge
+        // the canvas edge. The same count doubles as the pagination page
+        // size, advancing to the next page every 9 seconds of video time.
         const unitHeight = DECOR_BOX_SIZE + DECOR_BANNER_BOTTOM_NUDGE;
         const stackCount = computeDecorStackCount(canvas.height);
+        const totalPages = Math.ceil(screenshots.length / stackCount);
+        const page = Math.floor(state.time / 9) % totalPages;
+        const pageItems = screenshots.slice(page * stackCount, page * stackCount + stackCount);
 
-        for (let i = 0; i < stackCount; i++) {
+        pageItems.forEach((item, i) => {
           const unitTop = DECOR_PADDING + i * (unitHeight + DECOR_STACK_SPACING);
 
           if (boxPanelImage) {
@@ -217,15 +229,13 @@ export default function VideoCanvas() {
               DECOR_BOX_SIZE
             );
           }
-          const clip = boxClipThumbnailsRef.current[i];
-          if (clip) {
-            const clipX = DECOR_PADDING + DECOR_SOURCE_BORDER + DECOR_CLIP_PADDING;
-            const clipY = unitTop + DECOR_SOURCE_BORDER + DECOR_CLIP_PADDING;
-            context.save();
-            clipToRoundedRect(context, clipX, clipY, DECOR_CLIP_SIZE, DECOR_CLIP_SIZE, VIDEO_CORNER_RADIUS);
-            context.drawImage(clip, clipX, clipY, DECOR_CLIP_SIZE, DECOR_CLIP_SIZE);
-            context.restore();
-          }
+          const clipX = DECOR_PADDING + DECOR_SOURCE_BORDER + DECOR_CLIP_PADDING;
+          const clipY = unitTop + DECOR_SOURCE_BORDER + DECOR_CLIP_PADDING;
+          context.save();
+          clipToRoundedRect(context, clipX, clipY, DECOR_CLIP_SIZE, DECOR_CLIP_SIZE, VIDEO_CORNER_RADIUS);
+          context.drawImage(item.canvas, clipX, clipY, DECOR_CLIP_SIZE, DECOR_CLIP_SIZE);
+          context.restore();
+
           if (bannerLeftImage && bannerMiddleImage && bannerRightImage) {
             // overlays the box like a label: bottom edge flush with the box's
             // bottom edge, slightly wider than the box and centered on it
@@ -250,9 +260,7 @@ export default function VideoCanvas() {
 
             // label text, sized so it reads correctly once exported at 1920x1080
             context.save();
-            const fontSize =
-              DECOR_BANNER_TEXT_SIZE_AT_REFERENCE *
-              (canvas.width / DECOR_TEXT_REFERENCE_WIDTH);
+            const fontSize = TEXT_SIZE_AT_1080P * (canvas.width / DECOR_TEXT_REFERENCE_WIDTH);
             context.font = `bold ${fontSize}px sans-serif`;
             context.textAlign = "center";
             context.textBaseline = "middle";
@@ -260,14 +268,14 @@ export default function VideoCanvas() {
             context.strokeStyle = "black";
             context.lineWidth = fontSize * 0.18;
             context.fillStyle = "white";
-            const label = "FEVER";
+            const label = item.label;
             const labelX = bannerX + bannerWidth / 2;
             const labelY = bannerY + 1 + DECOR_BANNER_HEIGHT * 0.56;
             context.strokeText(label, labelX, labelY);
             context.fillText(label, labelX, labelY);
             context.restore();
           }
-        }
+        });
         context.imageSmoothingEnabled = true;
       }
 
@@ -279,8 +287,7 @@ export default function VideoCanvas() {
       const textBoxHeight = canvas.height - (videoBottom + DECOR_PADDING) - DECOR_PADDING;
       if (boxPanelImage && activeClipForText && textBoxHeight > DECOR_SOURCE_BORDER * 2) {
         const clipText = activeClipForText.clip.text || "";
-        const textFontSize =
-          DECOR_CLIP_TEXT_SIZE_AT_REFERENCE * (canvas.width / DECOR_TEXT_REFERENCE_WIDTH);
+        const textFontSize = TEXT_SIZE_AT_1080P * (canvas.width / DECOR_TEXT_REFERENCE_WIDTH);
         context.font = `bold ${textFontSize}px sans-serif`;
 
         const textBoxX = VIDEO_MARGIN_LEFT;
@@ -410,6 +417,8 @@ export default function VideoCanvas() {
     const handleClick = () => {
       const preview = getState().preview;
       if (!preview) return;
+      let previewToCommit = preview;
+
       if (preview.type === "circle") {
         if (preview.clicks === 0) {
           setState({ preview: { ...preview, clicks: preview.clicks + 1 } });
@@ -420,6 +429,18 @@ export default function VideoCanvas() {
           setState({ preview: { ...preview, clicks: preview.clicks + 1 } });
           return;
         }
+      } else if (preview.type === "screenshot") {
+        if (preview.clicks === 0) {
+          setState({ preview: { ...preview, clicks: preview.clicks + 1 } });
+          return;
+        }
+        const label = prompt("Enter a label for this screenshot");
+        if (label === null) {
+          setState({ preview: null });
+          return;
+        }
+        const region = normalizeRegion(preview.x, preview.y, preview.width, preview.height);
+        previewToCommit = { ...preview, ...region, label };
       }
 
       const result = getActiveClip();
@@ -433,8 +454,8 @@ export default function VideoCanvas() {
           {
             ...clip,
             id: crypto.randomUUID(),
-            length: Math.max(clip.length, preview.length + preview.start),
-            media: [...clip.media, preview],
+            length: Math.max(clip.length, previewToCommit.length + previewToCommit.start),
+            media: [...clip.media, previewToCommit],
           },
           ...state.timeline.slice(index + 1),
         ],
@@ -474,16 +495,37 @@ export default function VideoCanvas() {
         });
       } else if (preview.type === "focus") {
         setState({ preview: { ...preview, x, y } });
+      } else if (preview.type === "screenshot") {
+        if (preview.clicks === 0) {
+          setState({ preview: { ...preview, x, y } });
+        } else {
+          setState({ preview: { ...preview, width: x - preview.x, height: y - preview.y } });
+        }
       }
     };
 
     canvas.addEventListener("click", handleClick);
     canvas.addEventListener("mousemove", handleMouseMove);
 
+    // Recording mode hides the cursor and only ever gets exited by leaving
+    // fullscreen (Esc, browser chrome, etc) -- there's no dedicated "stop"
+    // action, so fullscreenchange is the only reliable place to restore the
+    // cursor and clear the stale isRecording/isPlaying state.
+    const handleFullscreenChange = () => {
+      if (!document.fullscreenElement) {
+        canvas.style.cursor = "";
+        if (getState().isRecording) {
+          setState({ isRecording: false, isPlaying: false });
+        }
+      }
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+
     return () => {
       cancelAnimationFrame(rafRef.current);
       canvas.removeEventListener("click", handleClick);
       canvas.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("fullscreenchange", handleFullscreenChange);
       setMainCanvas(null);
     };
   }, []);
@@ -503,6 +545,7 @@ export default function VideoCanvas() {
   useEffect(() => {
     const videoElement = getSharedVideoElement();
     const timeouts: number[] = [];
+    const audioElements: HTMLAudioElement[] = [];
     if (isPlaying) {
       let startOffset = 0;
       const state = getState();
@@ -533,6 +576,7 @@ export default function VideoCanvas() {
                 () => {
                   if (media.type === "audio") {
                     const audio = new Audio(media.src);
+                    audioElements.push(audio);
                     audio.currentTime = Math.max(
                       state.time - (finalOffset + media.start),
                       0,
@@ -552,6 +596,10 @@ export default function VideoCanvas() {
     }
     return () => {
       while (timeouts.length) clearTimeout(timeouts.pop());
+      // Timeouts only stop audio that hasn't started yet -- anything already
+      // playing (created inside a fired timeout callback) needs an explicit
+      // pause here too, or it keeps playing after the video is paused.
+      while (audioElements.length) audioElements.pop()!.pause();
     };
   }, [isPlaying]);
 

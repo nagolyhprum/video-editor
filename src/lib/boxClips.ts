@@ -41,6 +41,10 @@ function centeredSquareRegion(video: HTMLVideoElement): ClipRegion {
  * independent <video> element -- separate from the shared playback video and
  * the timeline's cached thumbnail video -- so seeking around for these never
  * disturbs either of those.
+ *
+ * Regions aren't necessarily square (e.g. a user-drawn screenshot crop), so
+ * they're fit *within* the square destination preserving aspect ratio
+ * (letterboxed) rather than stretched to fill it.
  */
 export async function generateBoxClipThumbnails(
   videoUrl: string,
@@ -56,16 +60,25 @@ export async function generateBoxClipThumbnails(
     canvas.width = size;
     canvas.height = size;
     const context = canvas.getContext("2d")!;
+
+    const sw = region.width * video.videoWidth;
+    const sh = region.height * video.videoHeight;
+    const regionAspect = sw / sh || 1;
+    const drawWidth = regionAspect >= 1 ? size : size * regionAspect;
+    const drawHeight = regionAspect >= 1 ? size / regionAspect : size;
+    const dx = (size - drawWidth) / 2;
+    const dy = (size - drawHeight) / 2;
+
     context.drawImage(
       video,
       region.x * video.videoWidth,
       region.y * video.videoHeight,
-      region.width * video.videoWidth,
-      region.height * video.videoHeight,
-      0,
-      0,
-      size,
-      size
+      sw,
+      sh,
+      dx,
+      dy,
+      drawWidth,
+      drawHeight
     );
     thumbnails.push(canvas);
   }

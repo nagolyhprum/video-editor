@@ -33,6 +33,8 @@ function mediaStyleClass(type: Media["type"]): string {
       return "z-10 h-full bg-blue-600";
     case "focus":
       return "z-10 h-1/2 bg-yellow-400";
+    case "screenshot":
+      return "z-10 h-full bg-purple-600";
     default:
       return "h-full";
   }

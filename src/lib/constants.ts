@@ -50,16 +50,17 @@ export const DECOR_STACK_SPACING = 20;
 // box edge-to-edge.
 export const DECOR_CLIP_PADDING = 10;
 // Side length of the square clip drawn inside each box.
-export const DECOR_CLIP_SIZE = DECOR_BOX_SIZE - DECOR_SOURCE_BORDER * 2 - DECOR_CLIP_PADDING * 2;
+export const DECOR_CLIP_SIZE =
+  DECOR_BOX_SIZE - DECOR_SOURCE_BORDER * 2 - DECOR_CLIP_PADDING * 2;
 
-// Reference export resolution the banner's label text is sized against --
-// the actual draw size is scaled by canvas.width / DECOR_TEXT_REFERENCE_WIDTH,
-// so it reads at the right size once rendered out at 1920x1080.
+// Reference export resolution every on-canvas text element is sized against
+// -- actual draw size is TEXT_SIZE_AT_1080P * (canvas.width / TEXT_REFERENCE_WIDTH),
+// so it reads at a consistent, minimum-viable-for-1080p-YouTube size no
+// matter which canvas (or preview scale) it's drawn on.
 export const DECOR_TEXT_REFERENCE_WIDTH = 1920;
-export const DECOR_BANNER_TEXT_SIZE_AT_REFERENCE = 48;
+export const TEXT_SIZE_AT_1080P = 40;
 
 // Standalone box showing the active clip's caption text (regardless of clip
 // type), sized to just fit the text plus padding, left-aligned, centered
 // vertically in the margin.
-export const DECOR_CLIP_TEXT_SIZE_AT_REFERENCE = 32;
 export const DECOR_CLIP_TEXT_PADDING = 14;

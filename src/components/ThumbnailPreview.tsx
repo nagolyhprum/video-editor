@@ -3,6 +3,7 @@ import { getState, useEditorState } from "../state/store";
 import { getActiveClip } from "../state/actions";
 import { drawMedia } from "../lib/canvas";
 import { getSharedVideoElement } from "../lib/videoElement";
+import { DECOR_TEXT_REFERENCE_WIDTH, TEXT_SIZE_AT_1080P } from "../lib/constants";
 
 export default function ThumbnailPreview() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -33,12 +34,13 @@ export default function ThumbnailPreview() {
       const { clip, start } = result;
       if (clip.text && clip.type === "image") {
         const OFFSET = 10;
+        const fontSize = TEXT_SIZE_AT_1080P * (canvas.width / DECOR_TEXT_REFERENCE_WIDTH);
         context.textBaseline = "top";
         context.textAlign = "center";
         context.strokeStyle = "black";
-        context.lineWidth = 20;
+        context.lineWidth = fontSize * 0.18;
         context.fillStyle = "white";
-        context.font = "bold 100px sans-serif";
+        context.font = `bold ${fontSize}px sans-serif`;
         const text = clip.text.split("\n")[0];
         context.strokeText(text, canvas.width / 2, OFFSET, canvas.width - OFFSET * 2);
         context.fillText(text, canvas.width / 2, OFFSET, canvas.width - OFFSET * 2);
