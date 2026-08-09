@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { getState, setState, useEditorState } from "../../state/store";
 import { FPS } from "../../lib/constants";
-import { saveProjectProps } from "../../state/actions";
+import { clampTime, saveProjectProps } from "../../state/actions";
 import Thumbnails from "./Thumbnails";
 import MediaTrack from "./MediaTrack";
 
@@ -28,7 +28,8 @@ export default function Timeline() {
     const moveMarker = (e: MouseEvent) => {
       mouseDownRef.current = true;
       const bounds = timelineDiv.getBoundingClientRect();
-      const time = (e.clientX - bounds.left + timelineDiv.scrollLeft) / FPS;
+      const rawTime = (e.clientX - bounds.left + timelineDiv.scrollLeft) / FPS;
+      const time = clampTime(rawTime);
       setState({ time, isPlaying: false });
 
       const markerX = time * FPS;

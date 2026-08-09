@@ -95,7 +95,7 @@ export default function Thumbnails() {
         <div
           key={clip.id}
           id={clip.id}
-          className="relative inline-block align-top"
+          className="relative inline-block overflow-hidden align-top"
           style={{ width: Math.round(clip.length * FPS), height: THUMBNAIL_HEIGHT }}
         >
           {tiles.map((tile) => {

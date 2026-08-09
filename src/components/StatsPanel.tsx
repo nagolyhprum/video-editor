@@ -1,5 +1,5 @@
 import { useEditorState } from "../state/store";
-import { getActiveClip } from "../state/actions";
+import { getActiveClip, getTimelineDuration } from "../state/actions";
 
 function toTime(input: number): string {
   const minutes = Math.floor(input / 60);
@@ -16,7 +16,7 @@ export default function StatsPanel() {
     return <div id="stats" className="max-h-[360px] overflow-auto whitespace-pre text-xs" />;
   }
 
-  const length = timeline.reduce((total, clip) => total + clip.length, 0);
+  const length = getTimelineDuration();
   const json = {
     time: toTime(time),
     clipStart: toTime(result.clip.start),

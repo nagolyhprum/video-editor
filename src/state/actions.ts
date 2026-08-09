@@ -16,6 +16,19 @@ export function getActiveClip(): ActiveClip | null {
   return null;
 }
 
+export function getTimelineDuration(): number {
+  return getState().timeline.reduce((total, clip) => total + clip.length, 0);
+}
+
+// getActiveClip's own boundary check is a strict `>`, so clamping to exactly
+// getTimelineDuration() lands on a value no clip's range actually contains --
+// nudge just inside it instead, so a clamped time always resolves to the
+// last clip rather than falling through to no active clip at all.
+export function clampTime(seconds: number): number {
+  const duration = getTimelineDuration();
+  return Math.max(0, Math.min(seconds, Math.max(0, duration - 1e-6)));
+}
+
 export async function init(): Promise<void> {
   const projects = await listFiles({ pathname: "projects" });
   setState({ projects });
@@ -109,16 +122,12 @@ export async function handleFileUpload(files: FileList | File[]): Promise<void> 
   await setProject(project);
 }
 
-export function moveMarker(seconds: number): void {
-  setState({ time: seconds, isPlaying: false });
-}
-
 export function seekLeft(): void {
-  setState({ time: getState().time - 1 / 16 });
+  setState({ time: clampTime(getState().time - 1 / 16) });
 }
 
 export function seekRight(): void {
-  setState({ time: getState().time + 1 / 16 });
+  setState({ time: clampTime(getState().time + 1 / 16) });
 }
 
 export function goToBeginning(): void {
