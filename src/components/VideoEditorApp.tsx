@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { init } from "../state/actions";
+import AutoSave from "./AutoSave";
 import DropZone from "./DropZone";
 import ProjectName from "./ProjectName";
 import VideoCanvas from "./VideoCanvas";
@@ -25,6 +26,7 @@ export default function VideoEditorApp() {
 
   return (
     <DropZone>
+      <AutoSave />
       <ProjectName />
       <div className="flex flex-row flex-wrap gap-4 py-4">
         <VideoCanvas />

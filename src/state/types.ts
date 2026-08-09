@@ -73,6 +73,13 @@ export interface Clip {
   text: string;
 }
 
+export interface ScreenshotThumbnail {
+  id: string;
+  label: string;
+  canvas: HTMLCanvasElement;
+  absoluteTime: number;
+}
+
 export interface EditorState {
   projects: string[];
   project: string;
@@ -85,6 +92,11 @@ export interface EditorState {
   scale: number;
   duration: number;
   topCrop: number;
+  // Generated crops for each screenshot media item, keyed by media id --
+  // shared here (rather than kept local to whichever component generates
+  // them) since both the left-margin stack and the timeline's media track
+  // need to display them.
+  screenshotThumbnails: ScreenshotThumbnail[];
 }
 
 export interface ActiveClip {

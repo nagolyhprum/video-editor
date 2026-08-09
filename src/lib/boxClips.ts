@@ -56,6 +56,7 @@ export async function generateBoxClipThumbnails(
     canvas.width = size;
     canvas.height = size;
     const context = canvas.getContext("2d")!;
+    context.imageSmoothingQuality = "high";
 
     await useCachedVideo(videoUrl, async (video) => {
       await seekVideo(video, spec.time);

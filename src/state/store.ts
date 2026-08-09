@@ -13,6 +13,7 @@ const initialState: EditorState = {
   scale: 100,
   duration: 0,
   topCrop: 0,
+  screenshotThumbnails: [],
 };
 
 let state: EditorState = initialState;

@@ -1,5 +1,10 @@
 export const FPS = 10;
 
+// Gap between entering fullscreen and actually starting recorded playback --
+// needs to outlast the browser's own "press Esc to exit fullscreen" overlay,
+// or that overlay ends up burned into the start of the recording.
+export const RECORDING_START_DELAY_MS = 8000;
+
 // Margins the video is drawn within on the main canvas, instead of filling it.
 // Bottom isn't fixed -- it falls out of preserving the video's aspect ratio
 // once width is shrunk by the left/right margins.
@@ -67,6 +72,13 @@ export const DECOR_CLIP_BANNER_SAFE_PADDING = 6;
 export const DECOR_CLIP_SAFE_HEIGHT =
   DECOR_CLIP_SIZE - DECOR_CLIP_BANNER_OVERLAP - DECOR_CLIP_BANNER_SAFE_PADDING;
 
+// Screenshot thumbnails are generated at this multiple of their on-screen
+// display size (DECOR_CLIP_SIZE) rather than 1:1 -- cropping a video frame
+// straight down to a small on-screen size in one step looks soft (no true
+// mipmapping in canvas, and recording scales the display size up further
+// still), so the source bitmap carries extra resolution to downscale from.
+export const DECOR_CLIP_RESOLUTION_SCALE = 3;
+
 // Reference export resolution every on-canvas text element is sized against
 // -- actual draw size is TEXT_SIZE_AT_1080P * (canvas.width / TEXT_REFERENCE_WIDTH),
 // so it reads at a consistent, minimum-viable-for-1080p-YouTube size no
@@ -78,3 +90,17 @@ export const TEXT_SIZE_AT_1080P = 40;
 // type), sized to just fit the text plus padding, left-aligned, centered
 // vertically in the margin.
 export const DECOR_CLIP_TEXT_PADDING = 14;
+
+// The left-margin screenshot stack pages through stackCount items at a time.
+export const SCREENSHOT_PAGE_INTERVAL = 9;
+
+// How long the camera-flash overlay stays visible (fading out) when a
+// screenshot is "taken" during a recording pass.
+export const SCREENSHOT_FLASH_DURATION = 0.3;
+
+// The timeline's media track shows a small preview badge (captured
+// thumbnail + label) on top of a screenshot's block -- capped at this size
+// regardless of the block's own (duration-driven, often much narrower)
+// width, so it reads as a compact pin rather than an oversized overlay.
+export const SCREENSHOT_TIMELINE_PREVIEW_SIZE = 40;
+export const SCREENSHOT_TIMELINE_LABEL_MAX_WIDTH = 70;

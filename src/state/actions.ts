@@ -29,9 +29,15 @@ export function clampTime(seconds: number): number {
   return Math.max(0, Math.min(seconds, Math.max(0, duration - 1e-6)));
 }
 
+const LAST_PROJECT_STORAGE_KEY = "video-editor:lastProject";
+
 export async function init(): Promise<void> {
   const projects = await listFiles({ pathname: "projects" });
   setState({ projects });
+  const lastProject = localStorage.getItem(LAST_PROJECT_STORAGE_KEY);
+  if (lastProject && projects.includes(lastProject)) {
+    await setProject(lastProject);
+  }
 }
 
 interface ProjectProps {
@@ -95,6 +101,7 @@ export async function setProject(name: string): Promise<void> {
     scale: props.scale,
     topCrop: props.topCrop,
   });
+  localStorage.setItem(LAST_PROJECT_STORAGE_KEY, name);
 }
 
 export async function handleFileUpload(files: FileList | File[]): Promise<void> {

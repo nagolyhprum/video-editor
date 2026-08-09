@@ -64,11 +64,17 @@ export function canvasRegionToVideoRegion(
 
 // How many box+banner units fit stacked vertically in a margin of the given
 // canvas height -- shared by the generator (which needs a time per slot)
-// and the render loop (which needs a position per slot).
-export function computeDecorStackCount(canvasHeight: number): number {
-  const unitHeight = DECOR_BOX_SIZE + DECOR_BANNER_BOTTOM_NUDGE;
-  const availableHeight = canvasHeight - DECOR_PADDING;
-  return Math.max(1, Math.floor((availableHeight + DECOR_STACK_SPACING) / (unitHeight + DECOR_STACK_SPACING)));
+// and the render loop (which needs a position per slot). layoutScale keeps
+// the unit/padding/spacing amounts proportional to the canvas's own current
+// size (see VideoCanvas.tsx) so the *count* that fits stays the same
+// regardless of canvas size -- only pass something other than 1 when the
+// canvas itself is scaled up (e.g. for recording).
+export function computeDecorStackCount(canvasHeight: number, layoutScale: number = 1): number {
+  const unitHeight = (DECOR_BOX_SIZE + DECOR_BANNER_BOTTOM_NUDGE) * layoutScale;
+  const padding = DECOR_PADDING * layoutScale;
+  const spacing = DECOR_STACK_SPACING * layoutScale;
+  const availableHeight = canvasHeight - padding;
+  return Math.max(1, Math.floor((availableHeight + spacing) / (unitHeight + spacing)));
 }
 
 // Fills the given box by repeating `pattern` at its native pixel size, like
@@ -175,6 +181,11 @@ export function draw9SlicePanel(
 
 // Draws a horizontal 3-slice banner: fixed-size end caps (kept at their
 // native square aspect) with the middle piece stretched to fill the rest.
+// The middle tile is deliberately over-drawn past the caps (by a hand-tuned
+// pixel amount) to hide a fold-seam artifact in the source art -- that
+// overlap has to grow with everything else, or it stops covering the seam
+// once width/height are scaled up (e.g. for recording), so layoutScale
+// applies to it too.
 export function drawBanner(
   context: CanvasRenderingContext2D,
   leftCap: CanvasImageSource,
@@ -184,12 +195,19 @@ export function drawBanner(
   y: number,
   width: number,
   height: number,
+  layoutScale: number = 1,
 ): void {
   const capWidth = Math.min(height, width / 2);
   const middleWidth = Math.max(0, width - capWidth * 2);
   context.drawImage(leftCap, x, y, capWidth, height);
   context.drawImage(rightCap, x + capWidth + middleWidth, y, capWidth, height);
-  context.drawImage(middle, x + capWidth - 25, y - 2, middleWidth + 50, height);
+  context.drawImage(
+    middle,
+    x + capWidth - 25 * layoutScale,
+    y - 2 * layoutScale,
+    middleWidth + 50 * layoutScale,
+    height,
+  );
 }
 
 export function rotatePoint(
@@ -239,9 +257,9 @@ export function generateArrowHead(
   P2: Point,
   P3: Point,
   percent: number,
-  isLarge: boolean,
+  lineThickness: number,
 ): [Point, Point, Point] {
-  const arrowSize = thickness(isLarge) * 4;
+  const arrowSize = lineThickness * 4;
   const a = spline(P0, P1, P2, P3, percent - 0.01);
   const b = spline(P0, P1, P2, P3, percent);
 
@@ -278,7 +296,15 @@ export function drawMedia(
   progress: number,
   isLarge: boolean,
   isPlaying: boolean,
+  isRecording: boolean,
 ): void {
+  // Recording draws circles/arrows at isLarge's normal (bold, made-for-export)
+  // thickness, but that reads as too heavy once actually burned into the
+  // recording -- halved just for that pass, independent of isLarge's other
+  // meaning (ThumbnailPreview always passes isLarge=true for its own reasons,
+  // unrelated to recording, and should keep its normal thickness).
+  const lineThickness = isRecording ? thickness(isLarge) / 2 : thickness(isLarge);
+
   if (media.type === "circle") {
     context.save();
     const sx = canvas.width * media.width;
@@ -294,11 +320,11 @@ export function drawMedia(
     );
     context.restore();
     context.strokeStyle = "black";
-    context.lineWidth = 2 * thickness(isLarge);
+    context.lineWidth = 2 * lineThickness;
 
     context.stroke();
     context.strokeStyle = "white";
-    context.lineWidth = thickness(isLarge);
+    context.lineWidth = lineThickness;
 
     context.stroke();
   } else if (media.type === "arrow") {
@@ -324,18 +350,18 @@ export function drawMedia(
     const arrowHead = generateArrowHead(
       ...scaledPoints,
       Math.min(progress * 200, 100) / 100,
-      isLarge,
+      lineThickness,
     );
     context.lineTo(arrowHead[1].x, arrowHead[1].y);
     context.lineTo(arrowHead[0].x, arrowHead[0].y);
     context.moveTo(arrowHead[1].x, arrowHead[1].y);
     context.lineTo(arrowHead[2].x, arrowHead[2].y);
     context.strokeStyle = "black";
-    context.lineWidth = 2 * thickness(isLarge);
+    context.lineWidth = 2 * lineThickness;
 
     context.stroke();
     context.strokeStyle = "white";
-    context.lineWidth = thickness(isLarge);
+    context.lineWidth = lineThickness;
 
     context.stroke();
   } else if (media.type === "focus") {
@@ -349,6 +375,9 @@ export function drawMedia(
       );
     }
   } else if (media.type === "screenshot") {
+    // The outline is an editing aid for placing/spotting the capture region --
+    // it shouldn't show up burned into the actual recorded/exported output.
+    if (isRecording) return;
     const region = normalizeRegion(media.x, media.y, media.width, media.height);
     const rx = region.x * canvas.width;
     const ry = region.y * canvas.height;

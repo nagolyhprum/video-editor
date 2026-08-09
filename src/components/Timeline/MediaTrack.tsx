@@ -1,9 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useEditorState } from "../../state/store";
 import { deleteMedia, updateMediaStart } from "../../state/actions";
 import { drawAudioWaveform } from "../../lib/waveform";
-import { FPS } from "../../lib/constants";
-import type { Clip, Media } from "../../state/types";
+import { FPS, SCREENSHOT_TIMELINE_LABEL_MAX_WIDTH, SCREENSHOT_TIMELINE_PREVIEW_SIZE } from "../../lib/constants";
+import type { Clip, Media, ScreenshotMedia } from "../../state/types";
 
 function AudioWaveform({ src }: { src: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -26,6 +26,42 @@ function AudioWaveform({ src }: { src: string }) {
   }, [src]);
 
   return <div ref={containerRef} className="h-full w-full" />;
+}
+
+// A compact pin -- captured thumbnail (contained, not stretched) plus an
+// ellipsized label -- shown above a screenshot block so the timeline says
+// what was captured without needing to click into it. Fixed size regardless
+// of the block's own (duration-driven, often much narrower) width, and
+// pointer-events-none so it never steals the block's own click/right-click
+// handlers.
+function ScreenshotPreview({ media }: { media: ScreenshotMedia }) {
+  const thumbnail = useEditorState((s) => s.screenshotThumbnails.find((t) => t.id === media.id));
+  const dataUrl = useMemo(() => thumbnail?.canvas.toDataURL(), [thumbnail?.canvas]);
+  if (!dataUrl) return null;
+
+  return (
+    <div
+      className="pointer-events-none absolute top-0 z-20 flex flex-col items-center"
+      style={{ width: SCREENSHOT_TIMELINE_PREVIEW_SIZE }}
+    >
+      <img
+        src={dataUrl}
+        alt={media.label}
+        className="rounded-sm border border-white bg-black shadow"
+        style={{
+          width: SCREENSHOT_TIMELINE_PREVIEW_SIZE,
+          height: SCREENSHOT_TIMELINE_PREVIEW_SIZE,
+          objectFit: "contain",
+        }}
+      />
+      <div
+        className="max-w-full truncate rounded-b-sm bg-black/75 px-1 text-[10px] leading-tight text-white"
+        style={{ maxWidth: SCREENSHOT_TIMELINE_LABEL_MAX_WIDTH }}
+      >
+        {media.label}
+      </div>
+    </div>
+  );
 }
 
 function mediaStyleClass(type: Media["type"]): string {
@@ -76,15 +112,17 @@ export default function MediaTrack() {
   return (
     <div id="media" className="relative h-[100px]">
       {items.map(({ clip, media, left }) => (
-        <div
-          key={media.id}
-          id={media.id}
-          onClick={(e) => handleClick(clip, media, e)}
-          onContextMenu={(e) => handleContextMenu(clip, media, e)}
-          className={`absolute opacity-50 hover:opacity-70 ${mediaStyleClass(media.type)}`}
-          style={{ left: left * FPS, width: media.length * FPS }}
-        >
-          {media.type === "audio" && <AudioWaveform src={media.src} />}
+        <div key={media.id} className="absolute top-0 h-full" style={{ left: left * FPS }}>
+          <div
+            id={media.id}
+            onClick={(e) => handleClick(clip, media, e)}
+            onContextMenu={(e) => handleContextMenu(clip, media, e)}
+            className={`opacity-50 hover:opacity-70 ${mediaStyleClass(media.type)}`}
+            style={{ width: media.length * FPS, height: "100%" }}
+          >
+            {media.type === "audio" && <AudioWaveform src={media.src} />}
+          </div>
+          {media.type === "screenshot" && <ScreenshotPreview media={media} />}
         </div>
       ))}
     </div>

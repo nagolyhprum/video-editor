@@ -46,13 +46,13 @@ export default function ThumbnailPreview() {
         context.fillText(text, canvas.width / 2, OFFSET, canvas.width - OFFSET * 2);
       }
       if (preview) {
-        drawMedia(canvas, context, preview, 0.5, true, getState().isPlaying);
+        drawMedia(canvas, context, preview, 0.5, true, getState().isPlaying, false);
       }
       clip.media.forEach((media) => {
         const myStart = start + media.start;
         const myEnd = myStart + media.length;
         if (time >= myStart && time <= myEnd) {
-          drawMedia(canvas, context, media, (time - myStart) / media.length, true, getState().isPlaying);
+          drawMedia(canvas, context, media, (time - myStart) / media.length, true, getState().isPlaying, false);
         }
       });
     }

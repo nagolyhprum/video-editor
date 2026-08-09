@@ -21,7 +21,7 @@ import {
   getBoxPanelImage,
 } from "../lib/decorAssets";
 import { setMainCanvas } from "../lib/mainCanvas";
-import { getPlaybackOrigin } from "../lib/playback";
+import { getPlaybackOrigin, restorePreRecordingCanvasSize } from "../lib/playback";
 import {
   DECOR_BANNER_BOTTOM_NUDGE,
   DECOR_BANNER_EXTRA_WIDTH,
@@ -29,6 +29,7 @@ import {
   DECOR_BANNER_OPACITY,
   DECOR_BOX_SIZE,
   DECOR_CLIP_PADDING,
+  DECOR_CLIP_RESOLUTION_SCALE,
   DECOR_CLIP_SAFE_HEIGHT,
   DECOR_CLIP_SIZE,
   DECOR_CLIP_TEXT_PADDING,
@@ -37,6 +38,8 @@ import {
   DECOR_SOURCE_SIZE,
   DECOR_STACK_SPACING,
   DECOR_TEXT_REFERENCE_WIDTH,
+  SCREENSHOT_FLASH_DURATION,
+  SCREENSHOT_PAGE_INTERVAL,
   TEXT_SIZE_AT_1080P,
   VIDEO_CORNER_RADIUS,
   VIDEO_MARGIN_LEFT,
@@ -72,7 +75,6 @@ function conditionalTimeUpdate(video: HTMLVideoElement, time: number): void {
 export default function VideoCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number>(0);
-  const screenshotThumbnailsRef = useRef<{ label: string; canvas: HTMLCanvasElement }[]>([]);
   const project = useEditorState((s) => s.project);
   const time = useEditorState((s) => s.time);
   const isPlaying = useEditorState((s) => s.isPlaying);
@@ -86,7 +88,7 @@ export default function VideoCanvas() {
   useEffect(() => {
     const screenshots = getAllScreenshots();
     if (!project || !screenshots.length) {
-      screenshotThumbnailsRef.current = [];
+      setState({ screenshotThumbnails: [] });
       return;
     }
     let cancelled = false;
@@ -104,15 +106,19 @@ export default function VideoCanvas() {
     generateBoxClipThumbnails(
       `/api/download/projects/${project}/video.mp3`,
       specs,
-      DECOR_CLIP_SIZE,
-      DECOR_CLIP_SAFE_HEIGHT
+      DECOR_CLIP_SIZE * DECOR_CLIP_RESOLUTION_SCALE,
+      DECOR_CLIP_SAFE_HEIGHT * DECOR_CLIP_RESOLUTION_SCALE
     ).then(
       (thumbnails) => {
         if (cancelled) return;
-        screenshotThumbnailsRef.current = screenshots.map(({ media }, i) => ({
-          label: media.label,
-          canvas: thumbnails[i],
-        }));
+        setState({
+          screenshotThumbnails: screenshots.map(({ media, absoluteTime }, i) => ({
+            id: media.id,
+            label: media.label,
+            canvas: thumbnails[i],
+            absoluteTime,
+          })),
+        });
       }
     );
     return () => {
@@ -148,6 +154,15 @@ export default function VideoCanvas() {
     getBannerRightImage().then((image) => {
       bannerRightImage = image;
     });
+
+    // Tracks the currently-displayed screenshot stack's paging: which video
+    // time the current 9-second page window started at, and which screenshot
+    // is currently at the head (newest visible) slot. Whenever the head
+    // changes -- a new screenshot is created, or playback reaches an
+    // existing one -- the page resets to show it immediately, and the
+    // 9-second cycle restarts from that moment.
+    let screenshotPageAnchorTime = 0;
+    let lastScreenshotHeadId: string | null = null;
 
     const getXTargetsBasedOnMediaAndTime = (): number[] => {
       const mobileHeight = canvas.height;
@@ -194,43 +209,95 @@ export default function VideoCanvas() {
         );
       }
 
+      // Circle/arrow/focus/screenshot coordinates are stored as fractions of
+      // the *whole canvas*, captured while editing at the canvas's normal
+      // (960-wide) size. Recording bumps the canvas up to the video's native
+      // resolution -- if the margins stayed fixed pixel amounts, the video's
+      // own share of the canvas would shrink or grow relative to editing,
+      // and every annotation would drift off of what it was actually placed
+      // on. Scaling the margins (and topCrop, which is also an edit-mode
+      // pixel amount) by the same ratio the canvas itself grew by keeps the
+      // video's proportion of the canvas constant, so a fraction-based
+      // coordinate always lands on the same spot relative to the video
+      // regardless of which size the canvas is currently rendered at.
+      const layoutScale = canvas.width / 960;
+      const marginLeft = VIDEO_MARGIN_LEFT * layoutScale;
+      const marginRight = VIDEO_MARGIN_RIGHT * layoutScale;
+      const marginTop = VIDEO_MARGIN_TOP * layoutScale;
+
+      // The decorative box/banner/clip-image/label stack lives inside that
+      // same margin, so it needs to grow and shrink right along with it --
+      // otherwise it stays pinned at its edit-mode pixel size and looks
+      // tiny/lost once the margin itself is scaled up for recording. The
+      // 9-slice source crop dimensions (DECOR_SOURCE_SIZE/DECOR_SOURCE_BORDER)
+      // describe the source PNG's own pixel layout and are deliberately
+      // excluded -- only destination positions/sizes scale.
+      const decorPadding = DECOR_PADDING * layoutScale;
+      const decorBoxSize = DECOR_BOX_SIZE * layoutScale;
+      const decorClipPadding = DECOR_CLIP_PADDING * layoutScale;
+      const decorClipSize = DECOR_CLIP_SIZE * layoutScale;
+      const decorBannerHeight = DECOR_BANNER_HEIGHT * layoutScale;
+      const decorBannerExtraWidth = DECOR_BANNER_EXTRA_WIDTH * layoutScale;
+      const decorStackSpacing = DECOR_STACK_SPACING * layoutScale;
+      const decorBannerBottomNudge = DECOR_BANNER_BOTTOM_NUDGE * layoutScale;
+      const decorClipTextPadding = DECOR_CLIP_TEXT_PADDING * layoutScale;
+      // DECOR_SOURCE_BORDER doubles as a destination-space inset elsewhere
+      // (spacing content off of the box's own border) distinct from its use
+      // as a source-crop dimension -- scaled only for that inset purpose.
+      const decorSourceBorderInset = DECOR_SOURCE_BORDER * layoutScale;
+
       // Video is drawn within fixed margins rather than filling the canvas:
       // width is shrunk by the left/right margins, then height is shrunk by
       // that same percentage to preserve aspect ratio -- the bottom margin
       // is whatever space that leaves. Computed up front so the lower-margin
       // text box below can size itself against it too.
-      const videoWidth = canvas.width - VIDEO_MARGIN_LEFT - VIDEO_MARGIN_RIGHT;
+      const videoWidth = canvas.width - marginLeft - marginRight;
       const widthChangePercent = videoWidth / canvas.width;
       const fullVideoHeight = canvas.height * widthChangePercent;
 
       // Top crop trims that much off the top of the video output and hands
       // the freed space straight to the bottom margin -- the video's own top
-      // edge stays put at VIDEO_MARGIN_TOP, it just gets shorter.
-      const topCrop = Math.max(0, Math.min(state.topCrop, fullVideoHeight));
+      // edge stays put at marginTop, it just gets shorter.
+      const topCrop = Math.max(0, Math.min(state.topCrop * layoutScale, fullVideoHeight));
       const videoHeight = fullVideoHeight - topCrop;
-      const videoBottom = VIDEO_MARGIN_TOP + videoHeight;
+      const videoBottom = marginTop + videoHeight;
 
-      const screenshots = screenshotThumbnailsRef.current;
+      // Screenshots only enter the stack once the playhead has actually
+      // reached their capture moment, newest first -- so a freshly-created
+      // one (captured at ~now) lands at the head immediately, same as
+      // playback organically reaching an earlier one.
+      const visibleScreenshots = state.screenshotThumbnails
+        .filter((item) => item.absoluteTime <= state.time)
+        .sort((a, b) => b.absoluteTime - a.absoluteTime);
+
+      const headId = visibleScreenshots[0]?.id ?? null;
+      if (headId !== lastScreenshotHeadId) {
+        lastScreenshotHeadId = headId;
+        screenshotPageAnchorTime = state.time;
+      }
+
       if (
-        screenshots.length > 0 &&
+        visibleScreenshots.length > 0 &&
         (boxPanelImage ||
           (bannerLeftImage && bannerMiddleImage && bannerRightImage))
       ) {
         context.imageSmoothingEnabled = false;
 
         // stack as many box+banner units as fit vertically in the margin,
-        // each separated by DECOR_STACK_SPACING -- only the top needs its
+        // each separated by decorStackSpacing -- only the top needs its
         // own reserved padding, the bottom-most unit can run right up to
         // the canvas edge. The same count doubles as the pagination page
-        // size, advancing to the next page every 9 seconds of video time.
-        const unitHeight = DECOR_BOX_SIZE + DECOR_BANNER_BOTTOM_NUDGE;
-        const stackCount = computeDecorStackCount(canvas.height);
-        const totalPages = Math.ceil(screenshots.length / stackCount);
-        const page = Math.floor(state.time / 9) % totalPages;
-        const pageItems = screenshots.slice(page * stackCount, page * stackCount + stackCount);
+        // size, advancing to the next page every SCREENSHOT_PAGE_INTERVAL
+        // seconds since the page last reset to the head.
+        const unitHeight = decorBoxSize + decorBannerBottomNudge;
+        const stackCount = computeDecorStackCount(canvas.height, layoutScale);
+        const totalPages = Math.ceil(visibleScreenshots.length / stackCount);
+        const elapsedSincePageReset = Math.max(0, state.time - screenshotPageAnchorTime);
+        const page = Math.floor(elapsedSincePageReset / SCREENSHOT_PAGE_INTERVAL) % totalPages;
+        const pageItems = visibleScreenshots.slice(page * stackCount, page * stackCount + stackCount);
 
         pageItems.forEach((item, i) => {
-          const unitTop = DECOR_PADDING + i * (unitHeight + DECOR_STACK_SPACING);
+          const unitTop = decorPadding + i * (unitHeight + decorStackSpacing);
 
           if (boxPanelImage) {
             draw9SlicePanel(
@@ -238,27 +305,32 @@ export default function VideoCanvas() {
               boxPanelImage,
               DECOR_SOURCE_SIZE,
               DECOR_SOURCE_BORDER,
-              DECOR_PADDING,
+              decorPadding,
               unitTop,
-              DECOR_BOX_SIZE,
-              DECOR_BOX_SIZE
+              decorBoxSize,
+              decorBoxSize
             );
           }
-          const clipX = DECOR_PADDING + DECOR_SOURCE_BORDER + DECOR_CLIP_PADDING;
-          const clipY = unitTop + DECOR_SOURCE_BORDER + DECOR_CLIP_PADDING;
+          const clipX = decorPadding + decorSourceBorderInset + decorClipPadding;
+          const clipY = unitTop + decorSourceBorderInset + decorClipPadding;
           context.save();
-          clipToRoundedRect(context, clipX, clipY, DECOR_CLIP_SIZE, DECOR_CLIP_SIZE, VIDEO_CORNER_RADIUS);
-          context.drawImage(item.canvas, clipX, clipY, DECOR_CLIP_SIZE, DECOR_CLIP_SIZE);
+          // Overrides the pixel-art crispness setting above -- this is a
+          // downscale of a higher-res captured photo, not blocky source
+          // art, so it wants smoothing rather than nearest-neighbor.
+          context.imageSmoothingEnabled = true;
+          context.imageSmoothingQuality = "high";
+          clipToRoundedRect(context, clipX, clipY, decorClipSize, decorClipSize, VIDEO_CORNER_RADIUS * layoutScale);
+          context.drawImage(item.canvas, clipX, clipY, decorClipSize, decorClipSize);
           context.restore();
 
           if (bannerLeftImage && bannerMiddleImage && bannerRightImage) {
             // overlays the box like a label: bottom edge flush with the box's
             // bottom edge, slightly wider than the box and centered on it
-            const boxBottom = unitTop + DECOR_BOX_SIZE;
-            const bannerWidth = DECOR_BOX_SIZE + DECOR_BANNER_EXTRA_WIDTH;
-            const bannerX = DECOR_PADDING - DECOR_BANNER_EXTRA_WIDTH / 2;
+            const boxBottom = unitTop + decorBoxSize;
+            const bannerWidth = decorBoxSize + decorBannerExtraWidth;
+            const bannerX = decorPadding - decorBannerExtraWidth / 2;
             const bannerY =
-              boxBottom - DECOR_BANNER_HEIGHT + DECOR_BANNER_BOTTOM_NUDGE;
+              boxBottom - decorBannerHeight + decorBannerBottomNudge;
             context.save();
             context.globalAlpha = DECOR_BANNER_OPACITY;
             drawBanner(
@@ -269,7 +341,8 @@ export default function VideoCanvas() {
               bannerX,
               bannerY,
               bannerWidth,
-              DECOR_BANNER_HEIGHT
+              decorBannerHeight,
+              layoutScale
             );
             context.restore();
 
@@ -285,7 +358,7 @@ export default function VideoCanvas() {
             context.fillStyle = "white";
             const label = item.label;
             const labelX = bannerX + bannerWidth / 2;
-            const labelY = bannerY + 1 + DECOR_BANNER_HEIGHT * 0.56;
+            const labelY = bannerY + 1 + decorBannerHeight * 0.56;
             context.strokeText(label, labelX, labelY);
             context.fillText(label, labelX, labelY);
             context.restore();
@@ -299,16 +372,23 @@ export default function VideoCanvas() {
       // left/right edges) rather than sitting in the left margin, left-aligned
       // text vertically centered inside it.
       const activeClipForText = getActiveClip();
-      const textBoxHeight = canvas.height - (videoBottom + DECOR_PADDING) - DECOR_PADDING;
-      if (boxPanelImage && activeClipForText && textBoxHeight > DECOR_SOURCE_BORDER * 2) {
+      const textBoxHeight = canvas.height - (videoBottom + decorPadding) - decorPadding;
+      if (boxPanelImage && activeClipForText && textBoxHeight > decorSourceBorderInset * 2) {
         const clipText = activeClipForText.clip.text || "";
         const textFontSize = TEXT_SIZE_AT_1080P * (canvas.width / DECOR_TEXT_REFERENCE_WIDTH);
         context.font = `bold ${textFontSize}px sans-serif`;
 
-        const textBoxX = VIDEO_MARGIN_LEFT;
+        const textBoxX = marginLeft;
         const textBoxWidth = videoWidth;
-        const textBoxY = videoBottom + DECOR_PADDING;
+        const textBoxY = videoBottom + decorPadding;
 
+        // Clipped to the same radius as the video above it -- the 9-slice
+        // panel's own corner tiles are basically square at this scale, so
+        // without this the box's corners sit flush while the video's curve
+        // away, making the two edges look slightly misaligned right at the
+        // seam even though they're pixel-identical along the flat sides.
+        context.save();
+        clipToRoundedRect(context, textBoxX, textBoxY, textBoxWidth, textBoxHeight, VIDEO_CORNER_RADIUS * layoutScale);
         context.imageSmoothingEnabled = false;
         draw9SlicePanel(
           context,
@@ -321,6 +401,7 @@ export default function VideoCanvas() {
           textBoxHeight
         );
         context.imageSmoothingEnabled = true;
+        context.restore();
 
         context.save();
         context.font = `bold ${textFontSize}px sans-serif`;
@@ -329,7 +410,7 @@ export default function VideoCanvas() {
         context.fillStyle = "black";
         context.fillText(
           clipText,
-          textBoxX + DECOR_SOURCE_BORDER + DECOR_CLIP_TEXT_PADDING,
+          textBoxX + decorSourceBorderInset + decorClipTextPadding,
           textBoxY + textBoxHeight / 2
         );
         context.restore();
@@ -361,11 +442,11 @@ export default function VideoCanvas() {
       context.save();
       clipToRoundedRect(
         context,
-        VIDEO_MARGIN_LEFT,
-        VIDEO_MARGIN_TOP,
+        marginLeft,
+        marginTop,
         videoWidth,
         videoHeight,
-        VIDEO_CORNER_RADIUS,
+        VIDEO_CORNER_RADIUS * layoutScale,
       );
       if (videoElement.videoWidth && videoElement.videoHeight) {
         // crop the same amount off the top of the source, scaled from output
@@ -380,16 +461,16 @@ export default function VideoCanvas() {
           sy,
           videoElement.videoWidth,
           sHeight,
-          VIDEO_MARGIN_LEFT,
-          VIDEO_MARGIN_TOP,
+          marginLeft,
+          marginTop,
           videoWidth,
           videoHeight,
         );
       } else {
         context.drawImage(
           videoElement,
-          VIDEO_MARGIN_LEFT,
-          VIDEO_MARGIN_TOP,
+          marginLeft,
+          marginTop,
           videoWidth,
           videoHeight,
         );
@@ -398,7 +479,7 @@ export default function VideoCanvas() {
 
       const preview = state.preview;
       if (preview) {
-        drawMedia(canvas, context, preview, 0.5, false, state.isPlaying);
+        drawMedia(canvas, context, preview, 0.5, false, state.isPlaying, state.isRecording);
       }
 
       const result = getActiveClip();
@@ -415,10 +496,31 @@ export default function VideoCanvas() {
               (state.time - myStart) / media.length,
               state.isRecording,
               state.isPlaying,
+              state.isRecording,
             );
           }
         });
         context.restore();
+
+        // Camera-flash effect: only during an actual recording pass (so it
+        // shows up in the exported video, not while editing), a brief white
+        // overlay fades out over the active screenshot's capture moment.
+        if (state.isRecording) {
+          const flashing = clip.media.find((media) => {
+            if (media.type !== "screenshot") return false;
+            const myStart = start + media.start;
+            return state.time >= myStart && state.time <= myStart + SCREENSHOT_FLASH_DURATION;
+          });
+          if (flashing) {
+            const elapsed = state.time - (start + flashing.start);
+            const alpha = Math.max(0, 1 - elapsed / SCREENSHOT_FLASH_DURATION);
+            context.save();
+            context.fillStyle = "white";
+            context.globalAlpha = alpha;
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.restore();
+          }
+        }
       }
 
       if (state.isPlaying) {
@@ -525,10 +627,12 @@ export default function VideoCanvas() {
     // Recording mode hides the cursor and only ever gets exited by leaving
     // fullscreen (Esc, browser chrome, etc) -- there's no dedicated "stop"
     // action, so fullscreenchange is the only reliable place to restore the
-    // cursor and clear the stale isRecording/isPlaying state.
+    // cursor, the canvas's pre-recording size, and clear the stale
+    // isRecording/isPlaying state.
     const handleFullscreenChange = () => {
       if (!document.fullscreenElement) {
         canvas.style.cursor = "";
+        restorePreRecordingCanvasSize(canvas);
         if (getState().isRecording) {
           setState({ isRecording: false, isPlaying: false });
         }
@@ -596,6 +700,10 @@ export default function VideoCanvas() {
                       state.time - (finalOffset + media.start),
                       0,
                     );
+                    audio.play();
+                  } else if (media.type === "screenshot" && getState().isRecording) {
+                    const audio = new Audio("/photo.ogg");
+                    audioElements.push(audio);
                     audio.play();
                   }
                 },
