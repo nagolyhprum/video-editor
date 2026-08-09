@@ -6,6 +6,7 @@ import Thumbnails from "./Thumbnails";
 import MediaTrack from "./MediaTrack";
 
 const isNumber = (n: unknown): boolean => !isNaN(parseFloat(n as string));
+const EDGE_SCROLL_MARGIN = 60;
 
 declare global {
   interface Window {
@@ -27,32 +28,50 @@ export default function Timeline() {
     const moveMarker = (e: MouseEvent) => {
       mouseDownRef.current = true;
       const bounds = timelineDiv.getBoundingClientRect();
-      setState({
-        time: (e.clientX - bounds.left + timelineDiv.scrollLeft) / FPS,
-        isPlaying: false,
-      });
+      const time = (e.clientX - bounds.left + timelineDiv.scrollLeft) / FPS;
+      setState({ time, isPlaying: false });
+
+      const markerX = time * FPS;
+      const viewportLeft = timelineDiv.scrollLeft;
+      const viewportWidth = timelineDiv.clientWidth;
+      if (markerX - viewportLeft < EDGE_SCROLL_MARGIN) {
+        timelineDiv.scrollLeft = Math.max(0, markerX - EDGE_SCROLL_MARGIN);
+      } else if (viewportLeft + viewportWidth - markerX < EDGE_SCROLL_MARGIN) {
+        timelineDiv.scrollLeft = markerX - viewportWidth + EDGE_SCROLL_MARGIN;
+      }
     };
 
     const handleMouseDown = (e: MouseEvent) => {
-      if (e.button === 0) moveMarker(e);
+      if (e.button === 0) {
+        e.preventDefault();
+        moveMarker(e);
+      }
     };
     const handleMouseMove = (e: MouseEvent) => {
-      if (mouseDownRef.current) moveMarker(e);
+      if (mouseDownRef.current) {
+        e.preventDefault();
+        moveMarker(e);
+      }
     };
     const handleMouseUp = () => {
       mouseDownRef.current = false;
+    };
+    const handleDragStart = (e: DragEvent) => {
+      e.preventDefault();
     };
 
     timelineDiv.addEventListener("mousedown", handleMouseDown);
     timelineDiv.addEventListener("mousemove", handleMouseMove);
     timelineDiv.addEventListener("mouseleave", handleMouseUp);
     timelineDiv.addEventListener("mouseup", handleMouseUp);
+    timelineDiv.addEventListener("dragstart", handleDragStart);
 
     return () => {
       timelineDiv.removeEventListener("mousedown", handleMouseDown);
       timelineDiv.removeEventListener("mousemove", handleMouseMove);
       timelineDiv.removeEventListener("mouseleave", handleMouseUp);
       timelineDiv.removeEventListener("mouseup", handleMouseUp);
+      timelineDiv.removeEventListener("dragstart", handleDragStart);
     };
   }, []);
 
@@ -79,7 +98,7 @@ export default function Timeline() {
   }, []);
 
   return (
-    <div id="timeline" ref={timelineRef} className="relative w-full overflow-auto">
+    <div id="timeline" ref={timelineRef} className="relative w-full select-none overflow-auto">
       <Thumbnails />
       <MediaTrack />
       <div
