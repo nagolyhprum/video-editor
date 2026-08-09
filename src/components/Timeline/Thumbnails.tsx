@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useEditorState } from "../../state/store";
 import { FPS } from "../../lib/constants";
 import { seekVideo } from "../../lib/media";
-import { getCachedVideo } from "../../lib/videoElement";
+import { getCachedVideo, useCachedVideo } from "../../lib/videoElement";
 import type { Clip } from "../../state/types";
 
 const THUMBNAIL_HEIGHT = 50;
@@ -58,13 +58,13 @@ export default function Thumbnails() {
   useEffect(() => {
     if (!tileWidth || !project) return;
     let cancelled = false;
+    const url = `/api/download/projects/${project}/video.mp3`;
 
     (async () => {
-      const video = await getCachedVideo(`/api/download/projects/${project}/video.mp3`);
-      if (cancelled) return;
-
-      // Sequential on purpose: every tile shares the same cached video
-      // element, so concurrent seeks on it would race and clobber each other.
+      // Sequential on purpose: every tile shares the cached preview video
+      // element (with screenshot-thumbnail generation too, via the same
+      // useCachedVideo queue), so concurrent seeks on it would race and
+      // clobber each other.
       for (const { clip, tiles } of clipTiles) {
         for (const tile of tiles) {
           if (cancelled) return;
@@ -73,10 +73,12 @@ export default function Thumbnails() {
           const canvas = canvasRefs.current.get(key);
           if (!canvas) continue;
 
-          await seekVideo(video, tile.seekAt);
-          if (cancelled) return;
-          const context = canvas.getContext("2d")!;
-          context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          await useCachedVideo(url, async (video) => {
+            await seekVideo(video, tile.seekAt);
+            if (cancelled) return;
+            const context = canvas.getContext("2d")!;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+          });
           drawnTileKeys.current.add(key);
         }
       }

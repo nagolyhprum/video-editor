@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { getState, setState, useEditorState } from "../../state/store";
 import { FPS } from "../../lib/constants";
-import { saveTimeline } from "../../state/actions";
+import { saveProjectProps } from "../../state/actions";
 import Thumbnails from "./Thumbnails";
 import MediaTrack from "./MediaTrack";
 
@@ -83,7 +83,7 @@ export default function Timeline() {
 
   useEffect(() => {
     window.save = () => {
-      saveTimeline();
+      saveProjectProps();
     };
     window.clean = () => {
       setState({

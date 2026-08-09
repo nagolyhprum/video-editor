@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { saveTimeline } from "../state/actions";
+import { saveProjectProps } from "../state/actions";
 import { useEditorState } from "../state/store";
 
 export default function SaveButton() {
@@ -7,7 +7,7 @@ export default function SaveButton() {
   const [justSaved, setJustSaved] = useState(false);
 
   const handleClick = async () => {
-    await saveTimeline();
+    await saveProjectProps();
     setJustSaved(true);
     setTimeout(() => setJustSaved(false), 1500);
   };

@@ -21,21 +21,66 @@ export async function init(): Promise<void> {
   setState({ projects });
 }
 
-export async function saveTimeline(): Promise<void> {
+interface ProjectProps {
+  timeline: Clip[];
+  scale: number;
+  topCrop: number;
+}
+
+export async function saveProjectProps(): Promise<void> {
   const state = getState();
   if (!state.project) return;
+  const props: ProjectProps = {
+    timeline: state.timeline,
+    scale: state.scale,
+    topCrop: state.topCrop,
+  };
   await uploadFile({
-    file: new Blob([JSON.stringify(state.timeline)]),
-    pathname: `projects/${state.project}/timeline.json`,
+    file: new Blob([JSON.stringify(props)]),
+    pathname: `projects/${state.project}/project.json`,
   });
 }
 
+// Loads a project saved before props were consolidated into one file --
+// timeline.json is required (its absence means the project doesn't exist
+// at all); scale.json/topCrop.json are optional, since older projects
+// predate those features too.
+async function loadLegacyProjectProps(name: string): Promise<ProjectProps | null> {
+  const timelineBlob = await downloadFile({ pathname: `projects/${name}/timeline.json` });
+  if (!timelineBlob) return null;
+
+  const [scaleBlob, topCropBlob] = await Promise.all([
+    downloadFile({ pathname: `projects/${name}/scale.json` }),
+    downloadFile({ pathname: `projects/${name}/topCrop.json` }),
+  ]);
+
+  return {
+    timeline: JSON.parse(await getBlobText(timelineBlob)),
+    scale: scaleBlob ? JSON.parse(await getBlobText(scaleBlob)) : 100,
+    topCrop: topCropBlob ? JSON.parse(await getBlobText(topCropBlob)) : 0,
+  };
+}
+
 export async function setProject(name: string): Promise<void> {
-  const timeline = await downloadFile({ pathname: `projects/${name}/timeline.json` });
-  if (!timeline) return;
+  const projectBlob = await downloadFile({ pathname: `projects/${name}/project.json` });
+  let props: ProjectProps | null;
+  if (projectBlob) {
+    props = JSON.parse(await getBlobText(projectBlob)) as ProjectProps;
+  } else {
+    props = await loadLegacyProjectProps(name);
+    if (!props) return;
+    // Migrate onto the consolidated file so future loads/saves take the
+    // single-file path -- the old per-prop files are left in place, unused.
+    await uploadFile({
+      file: new Blob([JSON.stringify(props)]),
+      pathname: `projects/${name}/project.json`,
+    });
+  }
   setState({
     project: name,
-    timeline: JSON.parse(await getBlobText(timeline)),
+    timeline: props.timeline,
+    scale: props.scale,
+    topCrop: props.topCrop,
   });
 }
 
@@ -56,7 +101,8 @@ export async function handleFileUpload(files: FileList | File[]): Promise<void> 
     },
   ];
   await uploadFile({ file: fileList[0], pathname: `projects/${project}/video.mp3` });
-  await uploadFile({ file: new Blob([JSON.stringify(timeline)]), pathname: `projects/${project}/timeline.json` });
+  const props: ProjectProps = { timeline, scale: 100, topCrop: 0 };
+  await uploadFile({ file: new Blob([JSON.stringify(props)]), pathname: `projects/${project}/project.json` });
   setState({
     projects: getState().projects.concat(project),
   });

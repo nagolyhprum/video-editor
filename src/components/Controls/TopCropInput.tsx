@@ -1,41 +1,7 @@
-import { useEffect, useRef } from "react";
-import { getState, setState, useEditorState } from "../../state/store";
-import { downloadFile, uploadFile } from "../../lib/api";
-import { getBlobText } from "../../lib/media";
+import { setState, useEditorState } from "../../state/store";
 
 export default function TopCropInput() {
   const topCrop = useEditorState((s) => s.topCrop);
-  const project = useEditorState((s) => s.project);
-  // Guards the save effect below from firing with topCrop's default value
-  // before the load effect has actually resolved -- without this, mounting
-  // with the store's default (0) races the async load and can win, clobbering
-  // whatever was actually saved on disk.
-  const loadedRef = useRef(false);
-
-  useEffect(() => {
-    loadedRef.current = false;
-    if (!project) return;
-    (async () => {
-      try {
-        const blob = await downloadFile({ pathname: `projects/${project}/topCrop.json` });
-        if (!blob) throw new Error("no topCrop file");
-        const text = await getBlobText(blob);
-        setState({ topCrop: JSON.parse(text) });
-      } catch {
-        setState({ topCrop: 0 });
-      } finally {
-        loadedRef.current = true;
-      }
-    })();
-  }, [project]);
-
-  useEffect(() => {
-    if (!getState().project || !loadedRef.current) return;
-    uploadFile({
-      pathname: `projects/${getState().project}/topCrop.json`,
-      file: new Blob([JSON.stringify(topCrop)]),
-    });
-  }, [topCrop]);
 
   return (
     <label className="flex items-center gap-2 text-sm">

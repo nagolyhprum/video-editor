@@ -1,4 +1,5 @@
 import { seekVideo } from "./media";
+import { useCachedVideo } from "./videoElement";
 
 export interface ClipRegion {
   x: number; // fraction 0-1 of the source video's width/height
@@ -10,20 +11,6 @@ export interface ClipRegion {
 export interface BoxClipSpec {
   time: number;
   region?: ClipRegion;
-}
-
-// A dedicated, uncached <video> element per call -- kept separate from the
-// shared playback video and the timeline's cached thumbnail video so
-// seeking around for these never disturbs either of those, and separate
-// from *each other call* too: seekVideo relies on video.onseeked, which
-// only supports one pending handler at a time, so two callers sharing an
-// element would clobber each other's seeks.
-function loadIndependentVideo(url: string): Promise<HTMLVideoElement> {
-  return new Promise((resolve) => {
-    const video = document.createElement("video");
-    video.onloadeddata = () => resolve(video);
-    video.src = url;
-  });
 }
 
 // Defaults to a centered square crop so a landscape video frame doesn't get
@@ -43,10 +30,11 @@ function centeredSquareRegion(video: HTMLVideoElement): ClipRegion {
 
 /**
  * Renders one square thumbnail per spec, each seeked to its own time and
- * cropped to its own region (or a centered square by default). Uses an
- * independent <video> element -- separate from the shared playback video and
- * the timeline's cached thumbnail video -- so seeking around for these never
- * disturbs either of those.
+ * cropped to its own region (or a centered square by default). Seeks happen
+ * on the shared preview <video> element (see videoElement.ts), the same one
+ * the timeline's own tile thumbnails use -- queued through useCachedVideo so
+ * the two never race each other -- rather than opening a separate element
+ * per call.
  *
  * Regions aren't necessarily square (e.g. a user-drawn screenshot crop), so
  * they're fit *within* the destination preserving aspect ratio (letterboxed)
@@ -62,36 +50,38 @@ export async function generateBoxClipThumbnails(
   size: number,
   contentHeight: number = size
 ): Promise<HTMLCanvasElement[]> {
-  const video = await loadIndependentVideo(videoUrl);
   const thumbnails: HTMLCanvasElement[] = [];
   for (const spec of specs) {
-    await seekVideo(video, spec.time);
-    const region = spec.region ?? centeredSquareRegion(video);
     const canvas = document.createElement("canvas");
     canvas.width = size;
     canvas.height = size;
     const context = canvas.getContext("2d")!;
 
-    const sw = region.width * video.videoWidth;
-    const sh = region.height * video.videoHeight;
-    const regionAspect = sw / sh || 1;
-    const boxAspect = size / contentHeight;
-    const drawWidth = regionAspect >= boxAspect ? size : contentHeight * regionAspect;
-    const drawHeight = regionAspect >= boxAspect ? size / regionAspect : contentHeight;
-    const dx = (size - drawWidth) / 2;
-    const dy = (contentHeight - drawHeight) / 2;
+    await useCachedVideo(videoUrl, async (video) => {
+      await seekVideo(video, spec.time);
+      const region = spec.region ?? centeredSquareRegion(video);
 
-    context.drawImage(
-      video,
-      region.x * video.videoWidth,
-      region.y * video.videoHeight,
-      sw,
-      sh,
-      dx,
-      dy,
-      drawWidth,
-      drawHeight
-    );
+      const sw = region.width * video.videoWidth;
+      const sh = region.height * video.videoHeight;
+      const regionAspect = sw / sh || 1;
+      const boxAspect = size / contentHeight;
+      const drawWidth = regionAspect >= boxAspect ? size : contentHeight * regionAspect;
+      const drawHeight = regionAspect >= boxAspect ? size / regionAspect : contentHeight;
+      const dx = (size - drawWidth) / 2;
+      const dy = (contentHeight - drawHeight) / 2;
+
+      context.drawImage(
+        video,
+        region.x * video.videoWidth,
+        region.y * video.videoHeight,
+        sw,
+        sh,
+        dx,
+        dy,
+        drawWidth,
+        drawHeight
+      );
+    });
     thumbnails.push(canvas);
   }
   return thumbnails;

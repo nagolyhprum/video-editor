@@ -11,7 +11,7 @@ import {
   drawTiledBackground,
   normalizeRegion,
 } from "../lib/canvas";
-import { getSharedVideoElement } from "../lib/videoElement";
+import { getSharedVideoElement, getVideoBlobUrl } from "../lib/videoElement";
 import { getCanvasBackgroundImage } from "../lib/backgroundImage";
 import { generateBoxClipThumbnails } from "../lib/boxClips";
 import {
@@ -620,13 +620,19 @@ export default function VideoCanvas() {
 
   useEffect(() => {
     const videoElement = getSharedVideoElement();
-    if (project) {
-      videoElement.src = `/api/download/projects/${project}/video.mp3`;
+    if (!project) return;
+    let cancelled = false;
+    getVideoBlobUrl(`/api/download/projects/${project}/video.mp3`).then((blobUrl) => {
+      if (cancelled) return;
+      videoElement.src = blobUrl;
       videoElement.onloadeddata = () => {
         videoElement.currentTime = 0;
         setState({ duration: videoElement.duration });
       };
-    }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [project]);
 
   return (
