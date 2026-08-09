@@ -33,3 +33,12 @@ export async function downloadFile({ pathname }: { pathname: string }): Promise<
     return undefined;
   }
 }
+
+export async function deleteFile({ pathname }: { pathname: string }): Promise<boolean> {
+  try {
+    const response = await fetch(`/api/delete/${pathname}`, { method: "DELETE" });
+    return response.ok;
+  } catch (error) {
+    return false;
+  }
+}

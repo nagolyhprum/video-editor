@@ -67,6 +67,7 @@ export interface EditorState {
   isMobile: boolean;
   scale: number;
   duration: number;
+  topCrop: number;
 }
 
 export interface ActiveClip {

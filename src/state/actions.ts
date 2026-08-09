@@ -1,5 +1,5 @@
 import { getState, setState } from "./store";
-import { downloadFile, listFiles, uploadFile } from "../lib/api";
+import { deleteFile, downloadFile, listFiles, uploadFile } from "../lib/api";
 import { getBlobText, getVideoDuration } from "../lib/media";
 import type { ActiveClip, ArrowMedia, CircleMedia, Clip, FocusMedia } from "./types";
 
@@ -275,13 +275,21 @@ export function deleteMedia(clip: Clip, mediaId: string): void {
   const state = getState();
   const clipIndex = state.timeline.indexOf(clip);
   if (clipIndex === -1) return;
+  const media = clip.media.find((m) => m.id === mediaId);
   setState({
     timeline: [
       ...state.timeline.slice(0, clipIndex),
-      { ...clip, media: clip.media.filter((media) => media.id !== mediaId) },
+      { ...clip, media: clip.media.filter((m) => m.id !== mediaId) },
       ...state.timeline.slice(clipIndex + 1),
     ],
   });
+
+  // audio media has an actual uploaded file backing it -- annotations
+  // (circle/arrow/focus) are pure timeline data, nothing to clean up server-side.
+  if (media?.type === "audio") {
+    const pathname = media.src.replace(/^\/api\/download\//, "");
+    deleteFile({ pathname });
+  }
 }
 
 export function updateMediaStart(clip: Clip, mediaId: string, start: number): void {

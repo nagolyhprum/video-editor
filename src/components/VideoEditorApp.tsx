@@ -15,6 +15,7 @@ import EditControls from "./Controls/EditControls";
 import MarkerControls from "./Controls/MarkerControls";
 import MediaButtons from "./Controls/MediaButtons";
 import ScaleInput from "./Controls/ScaleInput";
+import TopCropInput from "./Controls/TopCropInput";
 import Timeline from "./Timeline/Timeline";
 
 export default function VideoEditorApp() {
@@ -34,6 +35,7 @@ export default function VideoEditorApp() {
           <MarkerControls />
           <MediaButtons />
           <ScaleInput />
+          <TopCropInput />
         </div>
         <TextPanel />
       </div>

@@ -12,6 +12,7 @@ const initialState: EditorState = {
   isMobile: false,
   scale: 100,
   duration: 0,
+  topCrop: 0,
 };
 
 let state: EditorState = initialState;
