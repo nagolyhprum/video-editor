@@ -53,6 +53,20 @@ export const DECOR_CLIP_PADDING = 10;
 export const DECOR_CLIP_SIZE =
   DECOR_BOX_SIZE - DECOR_SOURCE_BORDER * 2 - DECOR_CLIP_PADDING * 2;
 
+// The label banner overlays the box like a sticker on top of its bottom
+// edge, which means it also covers the bottom slice of the clip drawn
+// underneath it. Derived (not hand-tuned) from the same geometry the banner
+// itself is positioned with, so it stays correct if those constants change.
+export const DECOR_CLIP_BANNER_OVERLAP =
+  DECOR_BANNER_HEIGHT - DECOR_BANNER_BOTTOM_NUDGE - DECOR_SOURCE_BORDER - DECOR_CLIP_PADDING;
+// Extra breathing room above the banner so contained content doesn't butt
+// right up against it.
+export const DECOR_CLIP_BANNER_SAFE_PADDING = 6;
+// The portion of the clip box a screenshot thumbnail can actually use
+// without any of it ending up hidden under the banner.
+export const DECOR_CLIP_SAFE_HEIGHT =
+  DECOR_CLIP_SIZE - DECOR_CLIP_BANNER_OVERLAP - DECOR_CLIP_BANNER_SAFE_PADDING;
+
 // Reference export resolution every on-canvas text element is sized against
 // -- actual draw size is TEXT_SIZE_AT_1080P * (canvas.width / TEXT_REFERENCE_WIDTH),
 // so it reads at a consistent, minimum-viable-for-1080p-YouTube size no

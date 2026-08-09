@@ -12,6 +12,12 @@ export interface BoxClipSpec {
   region?: ClipRegion;
 }
 
+// A dedicated, uncached <video> element per call -- kept separate from the
+// shared playback video and the timeline's cached thumbnail video so
+// seeking around for these never disturbs either of those, and separate
+// from *each other call* too: seekVideo relies on video.onseeked, which
+// only supports one pending handler at a time, so two callers sharing an
+// element would clobber each other's seeks.
 function loadIndependentVideo(url: string): Promise<HTMLVideoElement> {
   return new Promise((resolve) => {
     const video = document.createElement("video");
@@ -43,13 +49,18 @@ function centeredSquareRegion(video: HTMLVideoElement): ClipRegion {
  * disturbs either of those.
  *
  * Regions aren't necessarily square (e.g. a user-drawn screenshot crop), so
- * they're fit *within* the square destination preserving aspect ratio
- * (letterboxed) rather than stretched to fill it.
+ * they're fit *within* the destination preserving aspect ratio (letterboxed)
+ * rather than stretched to fill it. The canvas itself is always `size`
+ * square, but when the caller's own label banner will overlay the bottom of
+ * it, `contentHeight` (< size) keeps the fit contained to the area that'll
+ * actually stay visible, anchored to the top rather than centered -- so
+ * nothing meaningful ends up hidden underneath the banner.
  */
 export async function generateBoxClipThumbnails(
   videoUrl: string,
   specs: BoxClipSpec[],
-  size: number
+  size: number,
+  contentHeight: number = size
 ): Promise<HTMLCanvasElement[]> {
   const video = await loadIndependentVideo(videoUrl);
   const thumbnails: HTMLCanvasElement[] = [];
@@ -64,10 +75,11 @@ export async function generateBoxClipThumbnails(
     const sw = region.width * video.videoWidth;
     const sh = region.height * video.videoHeight;
     const regionAspect = sw / sh || 1;
-    const drawWidth = regionAspect >= 1 ? size : size * regionAspect;
-    const drawHeight = regionAspect >= 1 ? size / regionAspect : size;
+    const boxAspect = size / contentHeight;
+    const drawWidth = regionAspect >= boxAspect ? size : contentHeight * regionAspect;
+    const drawHeight = regionAspect >= boxAspect ? size / regionAspect : contentHeight;
     const dx = (size - drawWidth) / 2;
-    const dy = (size - drawHeight) / 2;
+    const dy = (contentHeight - drawHeight) / 2;
 
     context.drawImage(
       video,

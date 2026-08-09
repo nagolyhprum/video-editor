@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { getState, setState, useEditorState } from "../state/store";
 import { getActiveClip, getAllScreenshots } from "../state/actions";
 import {
+  canvasRegionToVideoRegion,
   clipToRoundedRect,
   computeDecorStackCount,
   draw9SlicePanel,
@@ -28,6 +29,7 @@ import {
   DECOR_BANNER_OPACITY,
   DECOR_BOX_SIZE,
   DECOR_CLIP_PADDING,
+  DECOR_CLIP_SAFE_HEIGHT,
   DECOR_CLIP_SIZE,
   DECOR_CLIP_TEXT_PADDING,
   DECOR_PADDING,
@@ -75,6 +77,7 @@ export default function VideoCanvas() {
   const time = useEditorState((s) => s.time);
   const isPlaying = useEditorState((s) => s.isPlaying);
   const timeline = useEditorState((s) => s.timeline);
+  const topCrop = useEditorState((s) => s.topCrop);
 
   // Each stacked box shows one actual screenshot media item, cropped to the
   // region the user drew -- regenerated whenever the timeline's screenshots
@@ -87,11 +90,23 @@ export default function VideoCanvas() {
       return;
     }
     let cancelled = false;
-    const specs = screenshots.map(({ media, absoluteTime }) => ({
-      time: absoluteTime,
-      region: { x: media.x, y: media.y, width: media.width, height: media.height },
+    const canvasWidth = canvasRef.current?.width ?? 960;
+    const canvasHeight = canvasRef.current?.height ?? 540;
+    const specs = screenshots.map(({ media, sourceTime }) => ({
+      time: sourceTime,
+      region: canvasRegionToVideoRegion(
+        { x: media.x, y: media.y, width: media.width, height: media.height },
+        canvasWidth,
+        canvasHeight,
+        topCrop,
+      ),
     }));
-    generateBoxClipThumbnails(`/api/download/projects/${project}/video.mp3`, specs, DECOR_CLIP_SIZE).then(
+    generateBoxClipThumbnails(
+      `/api/download/projects/${project}/video.mp3`,
+      specs,
+      DECOR_CLIP_SIZE,
+      DECOR_CLIP_SAFE_HEIGHT
+    ).then(
       (thumbnails) => {
         if (cancelled) return;
         screenshotThumbnailsRef.current = screenshots.map(({ media }, i) => ({
@@ -103,7 +118,7 @@ export default function VideoCanvas() {
     return () => {
       cancelled = true;
     };
-  }, [project, timeline]);
+  }, [project, timeline, topCrop]);
 
   useEffect(() => {
     if (!canvasRef.current) return;

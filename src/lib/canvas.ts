@@ -1,5 +1,13 @@
 import type { Media, MediaPreview, Point } from "../state/types";
-import { DECOR_BANNER_BOTTOM_NUDGE, DECOR_BOX_SIZE, DECOR_PADDING, DECOR_STACK_SPACING } from "./constants";
+import {
+  DECOR_BANNER_BOTTOM_NUDGE,
+  DECOR_BOX_SIZE,
+  DECOR_PADDING,
+  DECOR_STACK_SPACING,
+  VIDEO_MARGIN_LEFT,
+  VIDEO_MARGIN_RIGHT,
+  VIDEO_MARGIN_TOP,
+} from "./constants";
 
 export const thickness = (isLarge: boolean): number => (isLarge ? 20 : 5);
 
@@ -18,6 +26,40 @@ export function normalizeRegion(
     width: Math.abs(width),
     height: Math.abs(height),
   };
+}
+
+function clamp01(value: number): number {
+  return Math.max(0, Math.min(1, value));
+}
+
+// Screenshot regions are captured as fractions of the *whole canvas* (so the
+// on-canvas selection outline lines up with the click regardless of where
+// the video sits), but the video itself only occupies the area inside the
+// fixed margins, further shrunk from the top by the top-crop setting. To
+// crop the actual source video frame to what was selected, that canvas
+// fraction has to be re-expressed as a fraction of the video's own frame.
+export function canvasRegionToVideoRegion(
+  region: { x: number; y: number; width: number; height: number },
+  canvasWidth: number,
+  canvasHeight: number,
+  topCrop: number,
+): { x: number; y: number; width: number; height: number } {
+  const videoWidth = canvasWidth - VIDEO_MARGIN_LEFT - VIDEO_MARGIN_RIGHT;
+  const widthChangePercent = videoWidth / canvasWidth;
+  const fullVideoHeight = canvasHeight * widthChangePercent;
+  const clampedTopCrop = Math.max(0, Math.min(topCrop, fullVideoHeight));
+
+  const px = region.x * canvasWidth;
+  const py = region.y * canvasHeight;
+  const pw = region.width * canvasWidth;
+  const ph = region.height * canvasHeight;
+
+  const x = clamp01((px - VIDEO_MARGIN_LEFT) / videoWidth);
+  const y = clamp01((clampedTopCrop + py - VIDEO_MARGIN_TOP) / fullVideoHeight);
+  const right = clamp01((px + pw - VIDEO_MARGIN_LEFT) / videoWidth);
+  const bottom = clamp01((clampedTopCrop + py + ph - VIDEO_MARGIN_TOP) / fullVideoHeight);
+
+  return { x, y, width: Math.max(0, right - x), height: Math.max(0, bottom - y) };
 }
 
 // How many box+banner units fit stacked vertically in a margin of the given

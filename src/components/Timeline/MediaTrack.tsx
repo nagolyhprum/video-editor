@@ -15,7 +15,10 @@ function AudioWaveform({ src }: { src: string }) {
       canvas.style.width = "100%";
       canvas.style.height = "100%";
       canvas.style.background = "red";
-      containerRef.current.appendChild(canvas);
+      // replaceChildren (not appendChild) keeps this idempotent -- appendChild
+      // would stack a duplicate waveform canvas on top of the previous one
+      // any time this effect re-runs on the same container (e.g. HMR).
+      containerRef.current.replaceChildren(canvas);
     });
     return () => {
       cancelled = true;

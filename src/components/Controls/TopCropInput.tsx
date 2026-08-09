@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { getState, setState, useEditorState } from "../../state/store";
 import { downloadFile, uploadFile } from "../../lib/api";
 import { getBlobText } from "../../lib/media";
@@ -6,8 +6,14 @@ import { getBlobText } from "../../lib/media";
 export default function TopCropInput() {
   const topCrop = useEditorState((s) => s.topCrop);
   const project = useEditorState((s) => s.project);
+  // Guards the save effect below from firing with topCrop's default value
+  // before the load effect has actually resolved -- without this, mounting
+  // with the store's default (0) races the async load and can win, clobbering
+  // whatever was actually saved on disk.
+  const loadedRef = useRef(false);
 
   useEffect(() => {
+    loadedRef.current = false;
     if (!project) return;
     (async () => {
       try {
@@ -17,12 +23,14 @@ export default function TopCropInput() {
         setState({ topCrop: JSON.parse(text) });
       } catch {
         setState({ topCrop: 0 });
+      } finally {
+        loadedRef.current = true;
       }
     })();
   }, [project]);
 
   useEffect(() => {
-    if (!getState().project) return;
+    if (!getState().project || !loadedRef.current) return;
     uploadFile({
       pathname: `projects/${getState().project}/topCrop.json`,
       file: new Blob([JSON.stringify(topCrop)]),

@@ -293,11 +293,19 @@ export function createScreenshotPreview(): void {
 
 export interface TimedScreenshot {
   media: ScreenshotMedia;
+  // Position along the *edited* timeline (after cuts/splits/stills) --
+  // used for chronological ordering and for the pagination clock, which
+  // advances with playback of the edited video.
   absoluteTime: number;
+  // Position in the *raw source file* (video.mp3) this screenshot's clip
+  // was taken from -- clip.start is a source-file offset, not an edited-
+  // timeline one, so this is what an independent <video> seek needs to land
+  // on the actual captured frame.
+  sourceTime: number;
 }
 
-/** Every screenshot media item across the whole timeline, with its absolute
- * (timeline-relative, not clip-relative) capture time -- used to drive the
+/** Every screenshot media item across the whole timeline, with both its
+ * edited-timeline and source-file capture times -- used to drive the
  * left-margin box stack, which isn't scoped to the active clip. */
 export function getAllScreenshots(): TimedScreenshot[] {
   const state = getState();
@@ -306,7 +314,11 @@ export function getAllScreenshots(): TimedScreenshot[] {
   for (const clip of state.timeline) {
     for (const media of clip.media) {
       if (media.type === "screenshot") {
-        results.push({ media, absoluteTime: clipStart + media.start });
+        results.push({
+          media,
+          absoluteTime: clipStart + media.start,
+          sourceTime: clip.start + media.start,
+        });
       }
     }
     clipStart += clip.length;
