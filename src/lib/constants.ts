@@ -42,8 +42,24 @@ export const DECOR_BANNER_BOTTOM_NUDGE =
 // separate opaque piece.
 export const DECOR_BANNER_OPACITY = 1;
 
+// Vertical gap between stacked box+banner units in the left margin.
+export const DECOR_STACK_SPACING = 20;
+
+// Inset between the box's inner (9-slice) fill area and the video clip
+// drawn inside it, so the clip reads as "padded" rather than filling the
+// box edge-to-edge.
+export const DECOR_CLIP_PADDING = 10;
+// Side length of the square clip drawn inside each box.
+export const DECOR_CLIP_SIZE = DECOR_BOX_SIZE - DECOR_SOURCE_BORDER * 2 - DECOR_CLIP_PADDING * 2;
+
 // Reference export resolution the banner's label text is sized against --
 // the actual draw size is scaled by canvas.width / DECOR_TEXT_REFERENCE_WIDTH,
 // so it reads at the right size once rendered out at 1920x1080.
 export const DECOR_TEXT_REFERENCE_WIDTH = 1920;
 export const DECOR_BANNER_TEXT_SIZE_AT_REFERENCE = 48;
+
+// Standalone box showing the active clip's caption text (regardless of clip
+// type), sized to just fit the text plus padding, left-aligned, centered
+// vertically in the margin.
+export const DECOR_CLIP_TEXT_SIZE_AT_REFERENCE = 32;
+export const DECOR_CLIP_TEXT_PADDING = 14;

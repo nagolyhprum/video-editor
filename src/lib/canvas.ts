@@ -1,6 +1,16 @@
 import type { Media, MediaPreview, Point } from "../state/types";
+import { DECOR_BANNER_BOTTOM_NUDGE, DECOR_BOX_SIZE, DECOR_PADDING, DECOR_STACK_SPACING } from "./constants";
 
 export const thickness = (isLarge: boolean): number => (isLarge ? 20 : 5);
+
+// How many box+banner units fit stacked vertically in a margin of the given
+// canvas height -- shared by the generator (which needs a time per slot)
+// and the render loop (which needs a position per slot).
+export function computeDecorStackCount(canvasHeight: number): number {
+  const unitHeight = DECOR_BOX_SIZE + DECOR_BANNER_BOTTOM_NUDGE;
+  const availableHeight = canvasHeight - DECOR_PADDING;
+  return Math.max(1, Math.floor((availableHeight + DECOR_STACK_SPACING) / (unitHeight + DECOR_STACK_SPACING)));
+}
 
 // Fills the given box by repeating `pattern` at its native pixel size, like
 // CSS `background-repeat: repeat` (no `background-size` scaling).

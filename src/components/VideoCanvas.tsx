@@ -3,6 +3,7 @@ import { getState, setState, useEditorState } from "../state/store";
 import { getActiveClip } from "../state/actions";
 import {
   clipToRoundedRect,
+  computeDecorStackCount,
   draw9SlicePanel,
   drawBanner,
   drawMedia,
@@ -10,6 +11,7 @@ import {
 } from "../lib/canvas";
 import { getSharedVideoElement } from "../lib/videoElement";
 import { getCanvasBackgroundImage } from "../lib/backgroundImage";
+import { generateBoxClipThumbnails } from "../lib/boxClips";
 import {
   getBannerLeftImage,
   getBannerMiddleImage,
@@ -25,9 +27,14 @@ import {
   DECOR_BANNER_OPACITY,
   DECOR_BANNER_TEXT_SIZE_AT_REFERENCE,
   DECOR_BOX_SIZE,
+  DECOR_CLIP_PADDING,
+  DECOR_CLIP_SIZE,
+  DECOR_CLIP_TEXT_PADDING,
+  DECOR_CLIP_TEXT_SIZE_AT_REFERENCE,
   DECOR_PADDING,
   DECOR_SOURCE_BORDER,
   DECOR_SOURCE_SIZE,
+  DECOR_STACK_SPACING,
   DECOR_TEXT_REFERENCE_WIDTH,
   VIDEO_CORNER_RADIUS,
   VIDEO_MARGIN_LEFT,
@@ -63,9 +70,34 @@ function conditionalTimeUpdate(video: HTMLVideoElement, time: number): void {
 export default function VideoCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number>(0);
+  const boxClipThumbnailsRef = useRef<HTMLCanvasElement[]>([]);
   const project = useEditorState((s) => s.project);
   const time = useEditorState((s) => s.time);
   const isPlaying = useEditorState((s) => s.isPlaying);
+  const duration = useEditorState((s) => s.duration);
+
+  // Each stacked box gets a snapshot of the video at its own evenly-spaced
+  // time, cropped to a centered square -- generated once per project/duration
+  // (not every frame) and cached as plain canvases for the render loop to draw.
+  useEffect(() => {
+    if (!project || !duration) {
+      boxClipThumbnailsRef.current = [];
+      return;
+    }
+    let cancelled = false;
+    const stackCount = computeDecorStackCount(canvasRef.current?.height ?? 540);
+    const specs = Array.from({ length: stackCount }, (_, i) => ({
+      time: (duration * (i + 1)) / (stackCount + 1),
+    }));
+    generateBoxClipThumbnails(`/api/download/projects/${project}/video.mp3`, specs, DECOR_CLIP_SIZE).then(
+      (thumbnails) => {
+        if (!cancelled) boxClipThumbnailsRef.current = thumbnails;
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [project, duration]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -141,80 +173,145 @@ export default function VideoCanvas() {
         );
       }
 
+      // Video is drawn within fixed margins rather than filling the canvas:
+      // width is shrunk by the left/right margins, then height is shrunk by
+      // that same percentage to preserve aspect ratio -- the bottom margin
+      // is whatever space that leaves. Computed up front so the lower-margin
+      // text box below can size itself against it too.
+      const videoWidth = canvas.width - VIDEO_MARGIN_LEFT - VIDEO_MARGIN_RIGHT;
+      const widthChangePercent = videoWidth / canvas.width;
+      const fullVideoHeight = canvas.height * widthChangePercent;
+
+      // Top crop trims that much off the top of the video output and hands
+      // the freed space straight to the bottom margin -- the video's own top
+      // edge stays put at VIDEO_MARGIN_TOP, it just gets shorter.
+      const topCrop = Math.max(0, Math.min(state.topCrop, fullVideoHeight));
+      const videoHeight = fullVideoHeight - topCrop;
+      const videoBottom = VIDEO_MARGIN_TOP + videoHeight;
+
       if (
         boxPanelImage ||
         (bannerLeftImage && bannerMiddleImage && bannerRightImage)
       ) {
         context.imageSmoothingEnabled = false;
-        if (boxPanelImage) {
-          draw9SlicePanel(
-            context,
-            boxPanelImage,
-            DECOR_SOURCE_SIZE,
-            DECOR_SOURCE_BORDER,
-            DECOR_PADDING,
-            DECOR_PADDING,
-            DECOR_BOX_SIZE,
-            DECOR_BOX_SIZE,
-          );
-        }
-        if (bannerLeftImage && bannerMiddleImage && bannerRightImage) {
-          // overlays the box like a label: bottom edge flush with the box's
-          // bottom edge, slightly wider than the box and centered on it
-          const boxBottom = DECOR_PADDING + DECOR_BOX_SIZE;
-          const bannerWidth = DECOR_BOX_SIZE + DECOR_BANNER_EXTRA_WIDTH;
-          const bannerX = DECOR_PADDING - DECOR_BANNER_EXTRA_WIDTH / 2;
-          const bannerY =
-            boxBottom - DECOR_BANNER_HEIGHT + DECOR_BANNER_BOTTOM_NUDGE;
-          context.save();
-          context.globalAlpha = DECOR_BANNER_OPACITY;
-          drawBanner(
-            context,
-            bannerLeftImage,
-            bannerMiddleImage,
-            bannerRightImage,
-            bannerX,
-            bannerY,
-            bannerWidth,
-            DECOR_BANNER_HEIGHT,
-          );
-          context.restore();
 
-          // label text, sized so it reads correctly once exported at 1920x1080
-          context.save();
-          const fontSize =
-            DECOR_BANNER_TEXT_SIZE_AT_REFERENCE *
-            (canvas.width / DECOR_TEXT_REFERENCE_WIDTH);
-          context.font = `bold ${fontSize}px sans-serif`;
-          context.textAlign = "center";
-          context.textBaseline = "middle";
-          context.lineJoin = "round";
-          context.strokeStyle = "black";
-          context.lineWidth = fontSize * 0.18;
-          context.fillStyle = "white";
-          const label = "FEVER";
-          const labelX = bannerX + bannerWidth / 2;
-          const labelY = bannerY + 1 + DECOR_BANNER_HEIGHT * 0.56;
-          context.strokeText(label, labelX, labelY);
-          context.fillText(label, labelX, labelY);
-          context.restore();
+        // stack as many box+banner units as fit vertically in the margin,
+        // each separated by DECOR_STACK_SPACING -- only the top needs its
+        // own reserved padding, the bottom-most unit can run right up to
+        // the canvas edge
+        const unitHeight = DECOR_BOX_SIZE + DECOR_BANNER_BOTTOM_NUDGE;
+        const stackCount = computeDecorStackCount(canvas.height);
+
+        for (let i = 0; i < stackCount; i++) {
+          const unitTop = DECOR_PADDING + i * (unitHeight + DECOR_STACK_SPACING);
+
+          if (boxPanelImage) {
+            draw9SlicePanel(
+              context,
+              boxPanelImage,
+              DECOR_SOURCE_SIZE,
+              DECOR_SOURCE_BORDER,
+              DECOR_PADDING,
+              unitTop,
+              DECOR_BOX_SIZE,
+              DECOR_BOX_SIZE
+            );
+          }
+          const clip = boxClipThumbnailsRef.current[i];
+          if (clip) {
+            const clipX = DECOR_PADDING + DECOR_SOURCE_BORDER + DECOR_CLIP_PADDING;
+            const clipY = unitTop + DECOR_SOURCE_BORDER + DECOR_CLIP_PADDING;
+            context.save();
+            clipToRoundedRect(context, clipX, clipY, DECOR_CLIP_SIZE, DECOR_CLIP_SIZE, VIDEO_CORNER_RADIUS);
+            context.drawImage(clip, clipX, clipY, DECOR_CLIP_SIZE, DECOR_CLIP_SIZE);
+            context.restore();
+          }
+          if (bannerLeftImage && bannerMiddleImage && bannerRightImage) {
+            // overlays the box like a label: bottom edge flush with the box's
+            // bottom edge, slightly wider than the box and centered on it
+            const boxBottom = unitTop + DECOR_BOX_SIZE;
+            const bannerWidth = DECOR_BOX_SIZE + DECOR_BANNER_EXTRA_WIDTH;
+            const bannerX = DECOR_PADDING - DECOR_BANNER_EXTRA_WIDTH / 2;
+            const bannerY =
+              boxBottom - DECOR_BANNER_HEIGHT + DECOR_BANNER_BOTTOM_NUDGE;
+            context.save();
+            context.globalAlpha = DECOR_BANNER_OPACITY;
+            drawBanner(
+              context,
+              bannerLeftImage,
+              bannerMiddleImage,
+              bannerRightImage,
+              bannerX,
+              bannerY,
+              bannerWidth,
+              DECOR_BANNER_HEIGHT
+            );
+            context.restore();
+
+            // label text, sized so it reads correctly once exported at 1920x1080
+            context.save();
+            const fontSize =
+              DECOR_BANNER_TEXT_SIZE_AT_REFERENCE *
+              (canvas.width / DECOR_TEXT_REFERENCE_WIDTH);
+            context.font = `bold ${fontSize}px sans-serif`;
+            context.textAlign = "center";
+            context.textBaseline = "middle";
+            context.lineJoin = "round";
+            context.strokeStyle = "black";
+            context.lineWidth = fontSize * 0.18;
+            context.fillStyle = "white";
+            const label = "FEVER";
+            const labelX = bannerX + bannerWidth / 2;
+            const labelY = bannerY + 1 + DECOR_BANNER_HEIGHT * 0.56;
+            context.strokeText(label, labelX, labelY);
+            context.fillText(label, labelX, labelY);
+            context.restore();
+          }
         }
         context.imageSmoothingEnabled = true;
       }
 
-      // Video is drawn within fixed margins rather than filling the canvas:
-      // width is shrunk by the left/right margins, then height is shrunk by
-      // that same percentage to preserve aspect ratio -- the bottom margin
-      // is whatever space that leaves.
-      const width = canvas.width - VIDEO_MARGIN_LEFT - VIDEO_MARGIN_RIGHT;
-      const widthChangePercent = width / canvas.width;
-      const fullHeight = canvas.height * widthChangePercent;
+      // Standalone box showing the active clip's caption text, regardless of
+      // clip type -- fills the lower margin (below the video, aligned to its
+      // left/right edges) rather than sitting in the left margin, left-aligned
+      // text vertically centered inside it.
+      const activeClipForText = getActiveClip();
+      const textBoxHeight = canvas.height - (videoBottom + DECOR_PADDING) - DECOR_PADDING;
+      if (boxPanelImage && activeClipForText && textBoxHeight > DECOR_SOURCE_BORDER * 2) {
+        const clipText = activeClipForText.clip.text || "";
+        const textFontSize =
+          DECOR_CLIP_TEXT_SIZE_AT_REFERENCE * (canvas.width / DECOR_TEXT_REFERENCE_WIDTH);
+        context.font = `bold ${textFontSize}px sans-serif`;
 
-      // Top crop trims that much off the top of the video output and hands
-      // the freed space straight to the bottom margin -- the video's own top
-      // edge stays put at VIDEO_MARGIN_TOP, it just gets shorter.
-      const topCrop = Math.max(0, Math.min(state.topCrop, fullHeight));
-      const height = fullHeight - topCrop;
+        const textBoxX = VIDEO_MARGIN_LEFT;
+        const textBoxWidth = videoWidth;
+        const textBoxY = videoBottom + DECOR_PADDING;
+
+        context.imageSmoothingEnabled = false;
+        draw9SlicePanel(
+          context,
+          boxPanelImage,
+          DECOR_SOURCE_SIZE,
+          DECOR_SOURCE_BORDER,
+          textBoxX,
+          textBoxY,
+          textBoxWidth,
+          textBoxHeight
+        );
+        context.imageSmoothingEnabled = true;
+
+        context.save();
+        context.font = `bold ${textFontSize}px sans-serif`;
+        context.textAlign = "left";
+        context.textBaseline = "middle";
+        context.fillStyle = "black";
+        context.fillText(
+          clipText,
+          textBoxX + DECOR_SOURCE_BORDER + DECOR_CLIP_TEXT_PADDING,
+          textBoxY + textBoxHeight / 2
+        );
+        context.restore();
+      }
 
       const mobileHeight = canvas.height;
       const mobileWidth = (mobileHeight * 9) / 16;
@@ -244,15 +341,15 @@ export default function VideoCanvas() {
         context,
         VIDEO_MARGIN_LEFT,
         VIDEO_MARGIN_TOP,
-        width,
-        height,
+        videoWidth,
+        videoHeight,
         VIDEO_CORNER_RADIUS,
       );
       if (videoElement.videoWidth && videoElement.videoHeight) {
         // crop the same amount off the top of the source, scaled from output
         // pixels to the video's native resolution, so the visible zoom level
         // of the remaining footage doesn't change -- just where it starts.
-        const sourceScale = videoElement.videoHeight / fullHeight;
+        const sourceScale = videoElement.videoHeight / fullVideoHeight;
         const sy = topCrop * sourceScale;
         const sHeight = videoElement.videoHeight - sy;
         context.drawImage(
@@ -263,16 +360,16 @@ export default function VideoCanvas() {
           sHeight,
           VIDEO_MARGIN_LEFT,
           VIDEO_MARGIN_TOP,
-          width,
-          height,
+          videoWidth,
+          videoHeight,
         );
       } else {
         context.drawImage(
           videoElement,
           VIDEO_MARGIN_LEFT,
           VIDEO_MARGIN_TOP,
-          width,
-          height,
+          videoWidth,
+          videoHeight,
         );
       }
       context.restore();
@@ -300,47 +397,6 @@ export default function VideoCanvas() {
           }
         });
         context.restore();
-        if (clip.text && clip.type === "image") {
-          const OFFSET = (state.isRecording ? 50 : 10) * devicePixelRatio;
-          context.textBaseline = "top";
-          context.textAlign = "center";
-          context.font = `bold ${(state.isRecording ? 75 : 24) * devicePixelRatio}px sans-serif`;
-          context.strokeStyle = "black";
-          context.lineWidth = 10;
-          context.fillStyle = "white";
-
-          const text = clip.text.split("\n")[0];
-          if (isMobile) {
-            context.font = `bold ${state.isRecording ? 50 : 20}px sans-serif`;
-            context.strokeText(
-              text,
-              canvas.width / 2,
-              OFFSET + 40,
-              canvas.width - OFFSET * 2,
-            );
-            context.fillText(
-              text,
-              canvas.width / 2,
-              OFFSET + 40,
-              canvas.width - OFFSET * 2,
-            );
-          } else {
-            context.strokeText(
-              text,
-              canvas.width / 2,
-              OFFSET,
-              canvas.width - OFFSET * 2,
-            );
-            context.fillText(
-              text,
-              canvas.width / 2,
-              OFFSET,
-              canvas.width - OFFSET * 2,
-            );
-          }
-        } else {
-          context.restore();
-        }
       }
 
       if (state.isPlaying) {
@@ -349,7 +405,6 @@ export default function VideoCanvas() {
       }
     }
     drawVideoFrame();
-    (window as any).__manualDraw = drawVideoFrame;
     (window as any).__manualDraw = drawVideoFrame;
 
     const handleClick = () => {
