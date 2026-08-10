@@ -1,7 +1,7 @@
 import { getState, setState } from "./store";
 import { deleteFile, downloadFile, listFiles, uploadFile } from "../lib/api";
 import { getBlobText, getVideoDuration } from "../lib/media";
-import type { ActiveClip, ArrowMedia, CircleMedia, Clip, FocusMedia, ScreenshotMedia } from "./types";
+import type { ActiveClip, ArrowMedia, CircleMedia, Clip, FocusMedia, PhotoMedia, ScreenshotMedia } from "./types";
 
 export function getActiveClip(): ActiveClip | null {
   const state = getState();
@@ -353,11 +353,42 @@ export function createScreenshotPreview(): void {
   setState({ preview });
 }
 
-export interface TimedScreenshot {
+/** Prompts for a file, then a label, then uploads and adds it to the active
+ * clip at the current time -- same left-margin stack and timeline treatment
+ * as a screenshot, just sourced from an upload instead of a video crop. */
+export async function createPhotoMedia(file: File): Promise<void> {
+  const result = getActiveClip();
+  if (!result) return;
+  const { clip, start, index } = result;
+  const label = prompt("Enter a label for this image");
+  if (label === null) return;
+  const state = getState();
+  if (!state.project) return;
+
+  const extension = file.name.split(".").pop() || "png";
+  const path = `projects/${state.project}/images/${crypto.randomUUID()}.${extension}`;
+  await uploadFile({ file, pathname: path });
+
+  const media: PhotoMedia = {
+    id: crypto.randomUUID(),
+    type: "photo",
+    src: `/api/download/${path}`,
+    label,
+    start: state.time - start,
+    length: 2,
+  };
+  setState({
+    timeline: [
+      ...state.timeline.slice(0, index),
+      { ...clip, media: [...clip.media, media] },
+      ...state.timeline.slice(index + 1),
+    ],
+  });
+}
+
+export interface MarginMediaScreenshot {
+  kind: "screenshot";
   media: ScreenshotMedia;
-  // Position along the *edited* timeline (after cuts/splits/stills) --
-  // used for chronological ordering and for the pagination clock, which
-  // advances with playback of the edited video.
   absoluteTime: number;
   // Position in the *raw source file* (video.mp3) this screenshot's clip
   // was taken from -- clip.start is a source-file offset, not an edited-
@@ -366,21 +397,32 @@ export interface TimedScreenshot {
   sourceTime: number;
 }
 
-/** Every screenshot media item across the whole timeline, with both its
- * edited-timeline and source-file capture times -- used to drive the
- * left-margin box stack, which isn't scoped to the active clip. */
-export function getAllScreenshots(): TimedScreenshot[] {
+export interface MarginMediaPhoto {
+  kind: "photo";
+  media: PhotoMedia;
+  absoluteTime: number;
+}
+
+export type MarginMediaItem = MarginMediaScreenshot | MarginMediaPhoto;
+
+/** Every screenshot/photo media item across the whole timeline, with its
+ * edited-timeline capture/placement time -- used to drive the left-margin
+ * box stack, which isn't scoped to the active clip. */
+export function getAllMarginMedia(): MarginMediaItem[] {
   const state = getState();
-  const results: TimedScreenshot[] = [];
+  const results: MarginMediaItem[] = [];
   let clipStart = 0;
   for (const clip of state.timeline) {
     for (const media of clip.media) {
       if (media.type === "screenshot") {
         results.push({
+          kind: "screenshot",
           media,
           absoluteTime: clipStart + media.start,
           sourceTime: clip.start + media.start,
         });
+      } else if (media.type === "photo") {
+        results.push({ kind: "photo", media, absoluteTime: clipStart + media.start });
       }
     }
     clipStart += clip.length;

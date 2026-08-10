@@ -98,9 +98,9 @@ export const SCREENSHOT_PAGE_INTERVAL = 9;
 // screenshot is "taken" during a recording pass.
 export const SCREENSHOT_FLASH_DURATION = 0.3;
 
-// The timeline's media track shows a small preview badge (captured
-// thumbnail + label) on top of a screenshot's block -- capped at this size
+// The timeline's media track shows a small preview badge (thumbnail + label)
+// on top of a screenshot's or photo's block -- capped at this size
 // regardless of the block's own (duration-driven, often much narrower)
 // width, so it reads as a compact pin rather than an oversized overlay.
-export const SCREENSHOT_TIMELINE_PREVIEW_SIZE = 40;
-export const SCREENSHOT_TIMELINE_LABEL_MAX_WIDTH = 70;
+export const MARGIN_TIMELINE_PREVIEW_SIZE = 40;
+export const MARGIN_TIMELINE_LABEL_MAX_WIDTH = 70;

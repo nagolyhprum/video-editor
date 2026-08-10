@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef } from "react";
 import { useEditorState } from "../../state/store";
 import { deleteMedia, updateMediaStart } from "../../state/actions";
 import { drawAudioWaveform } from "../../lib/waveform";
-import { FPS, SCREENSHOT_TIMELINE_LABEL_MAX_WIDTH, SCREENSHOT_TIMELINE_PREVIEW_SIZE } from "../../lib/constants";
-import type { Clip, Media, ScreenshotMedia } from "../../state/types";
+import { FPS, MARGIN_TIMELINE_LABEL_MAX_WIDTH, MARGIN_TIMELINE_PREVIEW_SIZE } from "../../lib/constants";
+import type { Clip, Media, PhotoMedia, ScreenshotMedia } from "../../state/types";
 
 function AudioWaveform({ src }: { src: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -28,35 +28,35 @@ function AudioWaveform({ src }: { src: string }) {
   return <div ref={containerRef} className="h-full w-full" />;
 }
 
-// A compact pin -- captured thumbnail (contained, not stretched) plus an
-// ellipsized label -- shown above a screenshot block so the timeline says
-// what was captured without needing to click into it. Fixed size regardless
-// of the block's own (duration-driven, often much narrower) width, and
-// pointer-events-none so it never steals the block's own click/right-click
-// handlers.
-function ScreenshotPreview({ media }: { media: ScreenshotMedia }) {
-  const thumbnail = useEditorState((s) => s.screenshotThumbnails.find((t) => t.id === media.id));
+// A compact pin -- generated thumbnail (contained, not stretched) plus an
+// ellipsized label -- shown above a screenshot's or photo's block so the
+// timeline says what it is without needing to click into it. Fixed size
+// regardless of the block's own (duration-driven, often much narrower)
+// width, and pointer-events-none so it never steals the block's own
+// click/right-click handlers.
+function MarginMediaPreview({ media }: { media: ScreenshotMedia | PhotoMedia }) {
+  const thumbnail = useEditorState((s) => s.marginThumbnails.find((t) => t.id === media.id));
   const dataUrl = useMemo(() => thumbnail?.canvas.toDataURL(), [thumbnail?.canvas]);
   if (!dataUrl) return null;
 
   return (
     <div
       className="pointer-events-none absolute top-0 z-20 flex flex-col items-center"
-      style={{ width: SCREENSHOT_TIMELINE_PREVIEW_SIZE }}
+      style={{ width: MARGIN_TIMELINE_PREVIEW_SIZE }}
     >
       <img
         src={dataUrl}
         alt={media.label}
         className="rounded-sm border border-white bg-black shadow"
         style={{
-          width: SCREENSHOT_TIMELINE_PREVIEW_SIZE,
-          height: SCREENSHOT_TIMELINE_PREVIEW_SIZE,
+          width: MARGIN_TIMELINE_PREVIEW_SIZE,
+          height: MARGIN_TIMELINE_PREVIEW_SIZE,
           objectFit: "contain",
         }}
       />
       <div
         className="max-w-full truncate rounded-b-sm bg-black/75 px-1 text-[10px] leading-tight text-white"
-        style={{ maxWidth: SCREENSHOT_TIMELINE_LABEL_MAX_WIDTH }}
+        style={{ maxWidth: MARGIN_TIMELINE_LABEL_MAX_WIDTH }}
       >
         {media.label}
       </div>
@@ -74,6 +74,8 @@ function mediaStyleClass(type: Media["type"]): string {
       return "z-10 h-1/2 bg-yellow-400";
     case "screenshot":
       return "z-10 h-full bg-purple-600";
+    case "photo":
+      return "z-10 h-full bg-pink-600";
     default:
       return "h-full";
   }
@@ -122,7 +124,9 @@ export default function MediaTrack() {
           >
             {media.type === "audio" && <AudioWaveform src={media.src} />}
           </div>
-          {media.type === "screenshot" && <ScreenshotPreview media={media} />}
+          {(media.type === "screenshot" || media.type === "photo") && (
+            <MarginMediaPreview media={media} />
+          )}
         </div>
       ))}
     </div>

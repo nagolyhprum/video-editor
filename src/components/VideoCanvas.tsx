@@ -1,6 +1,11 @@
 import { useEffect, useRef } from "react";
 import { getState, setState, useEditorState } from "../state/store";
-import { getActiveClip, getAllScreenshots } from "../state/actions";
+import {
+  getActiveClip,
+  getAllMarginMedia,
+  type MarginMediaPhoto,
+  type MarginMediaScreenshot,
+} from "../state/actions";
 import {
   canvasRegionToVideoRegion,
   clipToRoundedRect,
@@ -13,7 +18,7 @@ import {
 } from "../lib/canvas";
 import { getSharedVideoElement, getVideoBlobUrl } from "../lib/videoElement";
 import { getCanvasBackgroundImage } from "../lib/backgroundImage";
-import { generateBoxClipThumbnails } from "../lib/boxClips";
+import { generateBoxClipThumbnails, generateImageThumbnails } from "../lib/boxClips";
 import {
   getBannerLeftImage,
   getBannerMiddleImage,
@@ -46,7 +51,7 @@ import {
   VIDEO_MARGIN_RIGHT,
   VIDEO_MARGIN_TOP,
 } from "../lib/constants";
-import type { Media, MediaPreview } from "../state/types";
+import type { Media, MarginThumbnail, MediaPreview } from "../state/types";
 
 function average(media: Media | MediaPreview, canvasWidth: number): number {
   if (media.type === "circle") {
@@ -81,20 +86,29 @@ export default function VideoCanvas() {
   const timeline = useEditorState((s) => s.timeline);
   const topCrop = useEditorState((s) => s.topCrop);
 
-  // Each stacked box shows one actual screenshot media item, cropped to the
-  // region the user drew -- regenerated whenever the timeline's screenshots
-  // change. The render loop picks which page of these to display each frame,
-  // so this only needs to (re)run once per edit, not every frame.
+  // Each stacked box shows one screenshot (cropped from the video) or photo
+  // (an uploaded image) media item -- regenerated whenever the timeline's
+  // set of either changes. The render loop picks which page of these to
+  // display each frame, so this only needs to (re)run once per edit, not
+  // every frame.
   useEffect(() => {
-    const screenshots = getAllScreenshots();
-    if (!project || !screenshots.length) {
-      setState({ screenshotThumbnails: [] });
+    const marginMedia = getAllMarginMedia();
+    if (!project || !marginMedia.length) {
+      setState({ marginThumbnails: [] });
       return;
     }
     let cancelled = false;
     const canvasWidth = canvasRef.current?.width ?? 960;
     const canvasHeight = canvasRef.current?.height ?? 540;
-    const specs = screenshots.map(({ media, sourceTime }) => ({
+    const clipSize = DECOR_CLIP_SIZE * DECOR_CLIP_RESOLUTION_SCALE;
+    const clipContentHeight = DECOR_CLIP_SAFE_HEIGHT * DECOR_CLIP_RESOLUTION_SCALE;
+
+    const screenshotItems = marginMedia.filter(
+      (item): item is MarginMediaScreenshot => item.kind === "screenshot"
+    );
+    const photoItems = marginMedia.filter((item): item is MarginMediaPhoto => item.kind === "photo");
+
+    const screenshotSpecs = screenshotItems.map(({ media, sourceTime }) => ({
       time: sourceTime,
       region: canvasRegionToVideoRegion(
         { x: media.x, y: media.y, width: media.width, height: media.height },
@@ -103,24 +117,33 @@ export default function VideoCanvas() {
         topCrop,
       ),
     }));
-    generateBoxClipThumbnails(
-      `/api/download/projects/${project}/video.mp3`,
-      specs,
-      DECOR_CLIP_SIZE * DECOR_CLIP_RESOLUTION_SCALE,
-      DECOR_CLIP_SAFE_HEIGHT * DECOR_CLIP_RESOLUTION_SCALE
-    ).then(
-      (thumbnails) => {
-        if (cancelled) return;
-        setState({
-          screenshotThumbnails: screenshots.map(({ media, absoluteTime }, i) => ({
-            id: media.id,
-            label: media.label,
-            canvas: thumbnails[i],
-            absoluteTime,
-          })),
-        });
-      }
-    );
+
+    Promise.all([
+      generateBoxClipThumbnails(
+        `/api/download/projects/${project}/video.mp3`,
+        screenshotSpecs,
+        clipSize,
+        clipContentHeight
+      ),
+      generateImageThumbnails(
+        photoItems.map((item) => item.media.src),
+        clipSize,
+        clipContentHeight
+      ),
+    ]).then(([screenshotThumbnails, photoThumbnails]) => {
+      if (cancelled) return;
+      const canvasById = new Map<string, HTMLCanvasElement>();
+      screenshotItems.forEach((item, i) => canvasById.set(item.media.id, screenshotThumbnails[i]));
+      photoItems.forEach((item, i) => canvasById.set(item.media.id, photoThumbnails[i]));
+      setState({
+        marginThumbnails: marginMedia
+          .map(({ media, absoluteTime }): MarginThumbnail | null => {
+            const canvas = canvasById.get(media.id);
+            return canvas ? { id: media.id, label: media.label, canvas, absoluteTime } : null;
+          })
+          .filter((item): item is MarginThumbnail => item !== null),
+      });
+    });
     return () => {
       cancelled = true;
     };
@@ -161,8 +184,8 @@ export default function VideoCanvas() {
     // changes -- a new screenshot is created, or playback reaches an
     // existing one -- the page resets to show it immediately, and the
     // 9-second cycle restarts from that moment.
-    let screenshotPageAnchorTime = 0;
-    let lastScreenshotHeadId: string | null = null;
+    let marginPageAnchorTime = 0;
+    let lastMarginHeadId: string | null = null;
 
     const getXTargetsBasedOnMediaAndTime = (): number[] => {
       const mobileHeight = canvas.height;
@@ -266,18 +289,18 @@ export default function VideoCanvas() {
       // reached their capture moment, newest first -- so a freshly-created
       // one (captured at ~now) lands at the head immediately, same as
       // playback organically reaching an earlier one.
-      const visibleScreenshots = state.screenshotThumbnails
+      const visibleMarginItems = state.marginThumbnails
         .filter((item) => item.absoluteTime <= state.time)
         .sort((a, b) => b.absoluteTime - a.absoluteTime);
 
-      const headId = visibleScreenshots[0]?.id ?? null;
-      if (headId !== lastScreenshotHeadId) {
-        lastScreenshotHeadId = headId;
-        screenshotPageAnchorTime = state.time;
+      const headId = visibleMarginItems[0]?.id ?? null;
+      if (headId !== lastMarginHeadId) {
+        lastMarginHeadId = headId;
+        marginPageAnchorTime = state.time;
       }
 
       if (
-        visibleScreenshots.length > 0 &&
+        visibleMarginItems.length > 0 &&
         (boxPanelImage ||
           (bannerLeftImage && bannerMiddleImage && bannerRightImage))
       ) {
@@ -291,10 +314,10 @@ export default function VideoCanvas() {
         // seconds since the page last reset to the head.
         const unitHeight = decorBoxSize + decorBannerBottomNudge;
         const stackCount = computeDecorStackCount(canvas.height, layoutScale);
-        const totalPages = Math.ceil(visibleScreenshots.length / stackCount);
-        const elapsedSincePageReset = Math.max(0, state.time - screenshotPageAnchorTime);
+        const totalPages = Math.ceil(visibleMarginItems.length / stackCount);
+        const elapsedSincePageReset = Math.max(0, state.time - marginPageAnchorTime);
         const page = Math.floor(elapsedSincePageReset / SCREENSHOT_PAGE_INTERVAL) % totalPages;
-        const pageItems = visibleScreenshots.slice(page * stackCount, page * stackCount + stackCount);
+        const pageItems = visibleMarginItems.slice(page * stackCount, page * stackCount + stackCount);
 
         pageItems.forEach((item, i) => {
           const unitTop = decorPadding + i * (unitHeight + decorStackSpacing);

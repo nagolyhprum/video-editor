@@ -59,7 +59,19 @@ export interface ScreenshotMedia {
   length: number;
 }
 
-export type Media = CircleMedia | ArrowMedia | FocusMedia | AudioMedia | ScreenshotMedia;
+// An uploaded (not captured-from-video) image, labeled and shown in the same
+// left-margin stack as screenshots. Named "photo" rather than "image" to
+// avoid colliding with ClipType's own unrelated "image" (a still-frame clip).
+export interface PhotoMedia {
+  id: string;
+  type: "photo";
+  src: string;
+  label: string;
+  start: number;
+  length: number;
+}
+
+export type Media = CircleMedia | ArrowMedia | FocusMedia | AudioMedia | ScreenshotMedia | PhotoMedia;
 export type MediaPreview = CircleMedia | ArrowMedia | FocusMedia | ScreenshotMedia;
 
 export type ClipType = "video" | "image";
@@ -73,7 +85,7 @@ export interface Clip {
   text: string;
 }
 
-export interface ScreenshotThumbnail {
+export interface MarginThumbnail {
   id: string;
   label: string;
   canvas: HTMLCanvasElement;
@@ -92,11 +104,11 @@ export interface EditorState {
   scale: number;
   duration: number;
   topCrop: number;
-  // Generated crops for each screenshot media item, keyed by media id --
-  // shared here (rather than kept local to whichever component generates
-  // them) since both the left-margin stack and the timeline's media track
-  // need to display them.
-  screenshotThumbnails: ScreenshotThumbnail[];
+  // Generated thumbnails for each screenshot/photo media item, keyed by
+  // media id -- shared here (rather than kept local to whichever component
+  // generates them) since both the left-margin stack and the timeline's
+  // media track need to display them.
+  marginThumbnails: MarginThumbnail[];
 }
 
 export interface ActiveClip {

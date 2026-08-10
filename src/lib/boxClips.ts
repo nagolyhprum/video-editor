@@ -1,5 +1,6 @@
 import { seekVideo } from "./media";
 import { useCachedVideo } from "./videoElement";
+import { loadImage } from "./imageCache";
 
 export interface ClipRegion {
   x: number; // fraction 0-1 of the source video's width/height
@@ -26,6 +27,25 @@ function centeredSquareRegion(video: HTMLVideoElement): ClipRegion {
     width: size / vw,
     height: size / vh,
   };
+}
+
+// Fits a sourceWidth x sourceHeight image into size x contentHeight,
+// preserving aspect ratio (letterboxed) rather than stretching, and
+// anchored to the *top* rather than centered -- so when the caller's own
+// label banner overlays the bottom of the box, nothing meaningful ends up
+// hidden underneath it. Shared by the video-crop and static-image thumbnail
+// generators below.
+function containFitTopAnchored(
+  sourceWidth: number,
+  sourceHeight: number,
+  size: number,
+  contentHeight: number
+): { drawWidth: number; drawHeight: number; dx: number; dy: number } {
+  const sourceAspect = sourceWidth / sourceHeight || 1;
+  const boxAspect = size / contentHeight;
+  const drawWidth = sourceAspect >= boxAspect ? size : contentHeight * sourceAspect;
+  const drawHeight = sourceAspect >= boxAspect ? size / sourceAspect : contentHeight;
+  return { drawWidth, drawHeight, dx: (size - drawWidth) / 2, dy: (contentHeight - drawHeight) / 2 };
 }
 
 /**
@@ -64,12 +84,7 @@ export async function generateBoxClipThumbnails(
 
       const sw = region.width * video.videoWidth;
       const sh = region.height * video.videoHeight;
-      const regionAspect = sw / sh || 1;
-      const boxAspect = size / contentHeight;
-      const drawWidth = regionAspect >= boxAspect ? size : contentHeight * regionAspect;
-      const drawHeight = regionAspect >= boxAspect ? size / regionAspect : contentHeight;
-      const dx = (size - drawWidth) / 2;
-      const dy = (contentHeight - drawHeight) / 2;
+      const { drawWidth, drawHeight, dx, dy } = containFitTopAnchored(sw, sh, size, contentHeight);
 
       context.drawImage(
         video,
@@ -83,6 +98,37 @@ export async function generateBoxClipThumbnails(
         drawHeight
       );
     });
+    thumbnails.push(canvas);
+  }
+  return thumbnails;
+}
+
+/**
+ * Renders one thumbnail per uploaded photo, fit the same way (contained,
+ * top-anchored) as generateBoxClipThumbnails above, so the two look
+ * consistent sitting in the same paginated stack.
+ */
+export async function generateImageThumbnails(
+  srcs: string[],
+  size: number,
+  contentHeight: number = size
+): Promise<HTMLCanvasElement[]> {
+  const thumbnails: HTMLCanvasElement[] = [];
+  for (const src of srcs) {
+    const image = await loadImage(src);
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const context = canvas.getContext("2d")!;
+    context.imageSmoothingQuality = "high";
+
+    const { drawWidth, drawHeight, dx, dy } = containFitTopAnchored(
+      image.naturalWidth,
+      image.naturalHeight,
+      size,
+      contentHeight
+    );
+    context.drawImage(image, dx, dy, drawWidth, drawHeight);
     thumbnails.push(canvas);
   }
   return thumbnails;
