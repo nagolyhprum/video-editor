@@ -95,6 +95,7 @@ export interface MarginThumbnail {
 export interface EditorState {
   projects: string[];
   project: string;
+  video: string;
   timeline: Clip[];
   time: number;
   preview: MediaPreview | null;

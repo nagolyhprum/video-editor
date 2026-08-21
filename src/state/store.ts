@@ -4,6 +4,7 @@ import type { EditorState } from "./types";
 const initialState: EditorState = {
   projects: [],
   project: "",
+  video: "",
   timeline: [],
   time: 0,
   preview: null,

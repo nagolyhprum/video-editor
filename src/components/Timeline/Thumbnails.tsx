@@ -32,6 +32,7 @@ function computeTiles(clip: Clip, tileWidth: number): Tile[] {
 export default function Thumbnails() {
   const timeline = useEditorState((s) => s.timeline);
   const project = useEditorState((s) => s.project);
+  const video = useEditorState((s) => s.video);
   const [tileWidth, setTileWidth] = useState<number | null>(null);
   const canvasRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const drawnTileKeys = useRef<Set<string>>(new Set());
@@ -41,14 +42,18 @@ export default function Thumbnails() {
     drawnTileKeys.current.clear();
     if (!project) return;
     let cancelled = false;
-    getCachedVideo(`/api/download/projects/${project}/video.mp3`).then((video) => {
+    getCachedVideo(`/api/download/projects/${project}/${video}`).then((videoElement) => {
       if (cancelled) return;
-      setTileWidth(video.videoWidth ? video.videoWidth * (THUMBNAIL_HEIGHT / video.videoHeight) : THUMBNAIL_HEIGHT);
+      setTileWidth(
+        videoElement.videoWidth
+          ? videoElement.videoWidth * (THUMBNAIL_HEIGHT / videoElement.videoHeight)
+          : THUMBNAIL_HEIGHT
+      );
     });
     return () => {
       cancelled = true;
     };
-  }, [project]);
+  }, [project, video]);
 
   const clipTiles = useMemo(() => {
     if (!tileWidth) return [];
@@ -58,7 +63,7 @@ export default function Thumbnails() {
   useEffect(() => {
     if (!tileWidth || !project) return;
     let cancelled = false;
-    const url = `/api/download/projects/${project}/video.mp3`;
+    const url = `/api/download/projects/${project}/${video}`;
 
     (async () => {
       // Sequential on purpose: every tile shares the cached preview video
@@ -87,7 +92,7 @@ export default function Thumbnails() {
     return () => {
       cancelled = true;
     };
-  }, [clipTiles, project, tileWidth]);
+  }, [clipTiles, project, video, tileWidth]);
 
   return (
     <div id="thumbnails" className="whitespace-nowrap select-none">

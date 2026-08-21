@@ -44,7 +44,12 @@ interface ProjectProps {
   timeline: Clip[];
   scale: number;
   topCrop: number;
+  video: string;
 }
+
+// Projects saved before the video filename was tracked always uploaded the
+// source file to this fixed name, regardless of its actual format.
+const LEGACY_VIDEO_FILENAME = "video.mp3";
 
 export async function saveProjectProps(): Promise<void> {
   const state = getState();
@@ -53,6 +58,7 @@ export async function saveProjectProps(): Promise<void> {
     timeline: state.timeline,
     scale: state.scale,
     topCrop: state.topCrop,
+    video: state.video,
   };
   await uploadFile({
     file: new Blob([JSON.stringify(props)]),
@@ -77,6 +83,7 @@ async function loadLegacyProjectProps(name: string): Promise<ProjectProps | null
     timeline: JSON.parse(await getBlobText(timelineBlob)),
     scale: scaleBlob ? JSON.parse(await getBlobText(scaleBlob)) : 100,
     topCrop: topCropBlob ? JSON.parse(await getBlobText(topCropBlob)) : 0,
+    video: LEGACY_VIDEO_FILENAME,
   };
 }
 
@@ -85,6 +92,9 @@ export async function setProject(name: string): Promise<void> {
   let props: ProjectProps | null;
   if (projectBlob) {
     props = JSON.parse(await getBlobText(projectBlob)) as ProjectProps;
+    // project.json files saved before the video filename was tracked don't
+    // have this field -- they always uploaded to the same fixed name.
+    if (!props.video) props.video = LEGACY_VIDEO_FILENAME;
   } else {
     props = await loadLegacyProjectProps(name);
     if (!props) return;
@@ -100,6 +110,7 @@ export async function setProject(name: string): Promise<void> {
     timeline: props.timeline,
     scale: props.scale,
     topCrop: props.topCrop,
+    video: props.video,
   });
   localStorage.setItem(LAST_PROJECT_STORAGE_KEY, name);
 }
@@ -120,8 +131,10 @@ export async function handleFileUpload(files: FileList | File[]): Promise<void> 
       text: "",
     },
   ];
-  await uploadFile({ file: fileList[0], pathname: `projects/${project}/video.mp3` });
-  const props: ProjectProps = { timeline, scale: 100, topCrop: 0 };
+  const extension = fileList[0].name.split(".").pop() || "mp4";
+  const video = `video.${extension}`;
+  await uploadFile({ file: fileList[0], pathname: `projects/${project}/${video}` });
+  const props: ProjectProps = { timeline, scale: 100, topCrop: 0, video };
   await uploadFile({ file: new Blob([JSON.stringify(props)]), pathname: `projects/${project}/project.json` });
   setState({
     projects: getState().projects.concat(project),
@@ -390,7 +403,7 @@ export interface MarginMediaScreenshot {
   kind: "screenshot";
   media: ScreenshotMedia;
   absoluteTime: number;
-  // Position in the *raw source file* (video.mp3) this screenshot's clip
+  // Position in the *raw source file* (the uploaded video) this screenshot's clip
   // was taken from -- clip.start is a source-file offset, not an edited-
   // timeline one, so this is what an independent <video> seek needs to land
   // on the actual captured frame.

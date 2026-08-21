@@ -81,6 +81,7 @@ export default function VideoCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number>(0);
   const project = useEditorState((s) => s.project);
+  const video = useEditorState((s) => s.video);
   const time = useEditorState((s) => s.time);
   const isPlaying = useEditorState((s) => s.isPlaying);
   const timeline = useEditorState((s) => s.timeline);
@@ -120,7 +121,7 @@ export default function VideoCanvas() {
 
     Promise.all([
       generateBoxClipThumbnails(
-        `/api/download/projects/${project}/video.mp3`,
+        `/api/download/projects/${project}/${video}`,
         screenshotSpecs,
         clipSize,
         clipContentHeight
@@ -147,7 +148,7 @@ export default function VideoCanvas() {
     return () => {
       cancelled = true;
     };
-  }, [project, timeline, topCrop]);
+  }, [project, video, timeline, topCrop]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -431,10 +432,13 @@ export default function VideoCanvas() {
         context.textAlign = "left";
         context.textBaseline = "middle";
         context.fillStyle = "black";
+        const textInset = decorSourceBorderInset + decorClipTextPadding;
+        const maxTextWidth = Math.max(0, textBoxWidth - textInset * 2);
         context.fillText(
           clipText,
-          textBoxX + decorSourceBorderInset + decorClipTextPadding,
-          textBoxY + textBoxHeight / 2
+          textBoxX + textInset,
+          textBoxY + textBoxHeight / 2,
+          maxTextWidth
         );
         context.restore();
       }
@@ -527,10 +531,12 @@ export default function VideoCanvas() {
 
         // Camera-flash effect: only during an actual recording pass (so it
         // shows up in the exported video, not while editing), a brief white
-        // overlay fades out over the active screenshot's capture moment.
+        // overlay fades out over the active screenshot's or photo's capture
+        // moment -- an uploaded photo "appearing" reads the same as a
+        // screenshot being taken.
         if (state.isRecording) {
           const flashing = clip.media.find((media) => {
-            if (media.type !== "screenshot") return false;
+            if (media.type !== "screenshot" && media.type !== "photo") return false;
             const myStart = start + media.start;
             return state.time >= myStart && state.time <= myStart + SCREENSHOT_FLASH_DURATION;
           });
@@ -724,7 +730,10 @@ export default function VideoCanvas() {
                       0,
                     );
                     audio.play();
-                  } else if (media.type === "screenshot" && getState().isRecording) {
+                  } else if (
+                    (media.type === "screenshot" || media.type === "photo") &&
+                    getState().isRecording
+                  ) {
                     const audio = new Audio("/photo.ogg");
                     audioElements.push(audio);
                     audio.play();
@@ -753,7 +762,7 @@ export default function VideoCanvas() {
     const videoElement = getSharedVideoElement();
     if (!project) return;
     let cancelled = false;
-    getVideoBlobUrl(`/api/download/projects/${project}/video.mp3`).then((blobUrl) => {
+    getVideoBlobUrl(`/api/download/projects/${project}/${video}`).then((blobUrl) => {
       if (cancelled) return;
       videoElement.src = blobUrl;
       videoElement.onloadeddata = () => {
@@ -764,7 +773,7 @@ export default function VideoCanvas() {
     return () => {
       cancelled = true;
     };
-  }, [project]);
+  }, [project, video]);
 
   return (
     <canvas
